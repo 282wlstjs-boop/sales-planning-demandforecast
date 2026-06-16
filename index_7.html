@@ -1,0 +1,2223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수요 업로드</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --blue:#2563eb;--blue-light:#eff6ff;--blue-dark:#1d4ed8;
+  --green:#16a34a;--green-light:#f0fdf4;
+  --red:#dc2626;--red-light:#fef2f2;
+  --amber:#d97706;--amber-light:#fffbeb;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-300:#d1d5db;--gray-400:#9ca3af;--gray-500:#6b7280;
+  --gray-700:#374151;--gray-900:#111827;
+  --shadow:0 1px 3px rgba(0,0,0,.1);--shadow-lg:0 10px 15px -3px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Apple SD Gothic Neo,sans-serif;background:#f1f5f9;color:var(--gray-900);min-height:100vh;}
+.page{display:none;}.page.active{display:block;}
+
+.hdr{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:0 28px;
+  display:flex;align-items:center;justify-content:space-between;height:64px;
+  box-shadow:0 2px 10px rgba(0,0,0,.2);}
+.hdr-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.hdr-r{display:flex;align-items:center;gap:10px;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
+  color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;}
+.btn-hdr{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  color:#fff;padding:6px 16px;border-radius:7px;font-size:13px;cursor:pointer;font-weight:500;}
+.btn-hdr:hover{background:rgba(255,255,255,.25);}
+.btn-back{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 14px;border-radius:7px;
+  font-size:13px;cursor:pointer;font-weight:500;}
+.btn-back:hover{background:rgba(255,255,255,.25);}
+.hdr-left{display:flex;align-items:center;gap:12px;}
+
+.container{max-width:1060px;margin:0 auto;padding:28px 20px;}
+
+/* 홈 */
+.home-hero{text-align:center;padding:48px 20px 36px;}
+.home-hero h1{font-size:38px;font-weight:900;color:var(--gray-900);margin-bottom:10px;letter-spacing:-.5px;}
+.home-hero p{font-size:12px;color:var(--gray-400);}
+.home-info{display:flex;align-items:flex-start;gap:8px;background:var(--blue-light);
+  border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;
+  font-size:13px;color:#1e40af;max-width:640px;margin:0 auto 36px;}
+
+.dept-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:800px;margin:0 auto;}
+@media(max-width:700px){.dept-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:420px){.dept-grid{grid-template-columns:1fr;}}
+.dept-card{background:#fff;border:2px solid var(--gray-200);border-radius:16px;
+  padding:28px 20px 24px;text-align:center;cursor:pointer;
+  transition:all .22s;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.dept-card:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(0,0,0,.12);
+  border-color:var(--dept-color,var(--blue));}
+.dept-card .d-icon{width:64px;height:64px;border-radius:18px;margin:0 auto 16px;
+  display:flex;align-items:center;justify-content:center;font-size:30px;
+  background:var(--dept-bg,#eff6ff);}
+.dept-card .d-name{font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:5px;}
+.dept-card .d-desc{font-size:12px;color:var(--gray-500);margin-bottom:14px;}
+.dept-card .d-arrow{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
+  color:var(--dept-color,var(--blue));opacity:0;transform:translateX(-6px);transition:all .2s;}
+.dept-card:hover .d-arrow{opacity:1;transform:translateX(0);}
+.dept-card .d-count{position:absolute;top:14px;right:14px;background:var(--dept-bg,#eff6ff);
+  color:var(--dept-color,var(--blue));font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;}
+.admin-entry{max-width:800px;margin:24px auto 0;display:flex;align-items:center;justify-content:center;}
+.admin-link{display:flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;
+  border:1px solid var(--gray-300);background:#fff;font-size:13px;color:var(--gray-500);cursor:pointer;transition:all .15s;}
+.admin-link:hover{border-color:var(--gray-400);color:var(--gray-700);background:var(--gray-50);}
+
+/* 업로드 화면 */
+.dept-hero{padding:20px 28px;border-bottom:1px solid var(--gray-200);background:#fff;
+  display:flex;align-items:center;gap:16px;}
+.dept-hero-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:24px;flex-shrink:0;}
+.dept-hero-name{font-size:18px;font-weight:800;margin-bottom:2px;}
+.dept-hero-sub{font-size:12px;color:var(--gray-500);}
+
+/* 2단계 업로드 박스 */
+.step-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+@media(max-width:700px){.step-grid{grid-template-columns:1fr;}}
+
+.step-box{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:2px solid var(--gray-200);transition:border-color .2s;}
+.step-box.done{border-color:var(--green);}
+.step-box.active-step{border-color:var(--blue);}
+.step-head{padding:14px 18px 12px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:10px;}
+.step-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0;background:var(--gray-200);color:var(--gray-500);}
+.step-num.active{background:var(--blue);color:#fff;}
+.step-num.done{background:var(--green);color:#fff;}
+.step-title{font-size:14px;font-weight:700;}
+.step-sub{font-size:11px;color:var(--gray-400);margin-top:1px;}
+.step-body{padding:16px 18px;}
+
+.upload-zone{border:2px dashed var(--gray-300);border-radius:10px;padding:32px 16px;
+  text-align:center;cursor:pointer;transition:all .2s;background:var(--gray-50);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:var(--blue-light);}
+.upload-zone.done-zone{border-color:var(--green);background:var(--green-light);cursor:default;}
+input[type=file]{display:none;}
+.file-chip{display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--green-light);border:1px solid #86efac;border-radius:8px;margin-top:10px;}
+
+/* 카드 */
+.card{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--gray-200);margin-bottom:18px;}
+.card-hdr{padding:14px 20px 12px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:14px;font-weight:700;}
+.card-body{padding:16px 20px;}
+
+/* 버튼 */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;
+  font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.btn-p{background:var(--blue);color:#fff;}.btn-p:hover{background:var(--blue-dark);}
+.btn-p:disabled{background:var(--gray-300);cursor:not-allowed;}
+.btn-s{background:var(--green);color:#fff;}.btn-s:hover{background:#15803d;}
+.btn-o{background:#fff;color:var(--gray-700);border:1px solid var(--gray-300);}
+.btn-o:hover{background:var(--gray-50);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+
+/* 테이블 */
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--gray-200);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#1e3a8a;color:#fff;padding:10px 12px;font-weight:600;text-align:center;white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--gray-100);text-align:center;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--blue-light);}
+.col-name{font-weight:600;text-align:left !important;}
+.col-code{color:var(--gray-500);font-size:12px;}
+.col-func{color:var(--blue);font-size:12px;font-weight:600;}
+.col-qty{font-weight:700;}
+.col-chg{background:#fff3cd !important;font-weight:700;color:#856404;}
+.tag-up{background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.tag-dn{background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.tag-new{background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.tag-ok{background:var(--gray-100);color:var(--gray-500);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+
+/* 이력 */
+.hist-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;
+  border:1px solid var(--gray-200);margin-bottom:8px;background:var(--gray-50);}
+.badge-latest{background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+
+/* 모달 */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;
+  align-items:center;justify-content:center;padding:16px;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:700px;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-hdr{padding:20px 24px 16px;border-bottom:1px solid var(--gray-200);
+  display:flex;align-items:flex-start;justify-content:space-between;
+  position:sticky;top:0;background:#fff;z-index:1;}
+.modal-ftr{padding:14px 24px;border-top:1px solid var(--gray-200);
+  display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;}
+.diff-reason{width:100%;border:1px solid var(--gray-300);border-radius:6px;padding:8px 10px;
+  font-size:13px;resize:vertical;min-height:60px;font-family:inherit;}
+.diff-reason:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.diff-reason.filled{border-color:var(--green);background:var(--green-light);}
+
+/* 비교 배지 */
+.cmp-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+  border-radius:6px;font-size:11px;font-weight:700;}
+.cmp-up{background:var(--green-light);color:var(--green);}
+.cmp-dn{background:var(--red-light);color:var(--red);}
+
+/* 로그인 */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#1e3a8a,#2563eb);}
+.login-box{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 20px 40px rgba(0,0,0,.3);}
+.form-label{font-size:13px;font-weight:600;color:var(--gray-700);display:block;margin-bottom:6px;}
+.form-input{width:100%;border:1.5px solid var(--gray-300);border-radius:8px;
+  padding:11px 14px;font-size:14px;font-family:inherit;transition:border-color .15s;}
+.form-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.btn-login{width:100%;background:var(--blue);color:#fff;border:none;border-radius:10px;
+  padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;}
+.btn-login:hover{background:var(--blue-dark);}
+
+/* 관리자 */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+@media(max-width:600px){.summary-grid{grid-template-columns:1fr 1fr;}}
+.s-card{background:#fff;border-radius:10px;padding:16px 20px;border:1px solid var(--gray-200);box-shadow:var(--shadow);}
+.s-label{font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.s-val{font-size:28px;font-weight:800;margin-top:4px;}
+.s-sub{font-size:11px;color:var(--gray-400);margin-top:2px;}
+.dept-sec-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:var(--gray-50);border-radius:8px;cursor:pointer;
+  border:1px solid var(--gray-200);transition:background .15s;margin-bottom:4px;}
+.dept-sec-hdr:hover{background:var(--gray-100);}
+.dept-files{display:none;padding:4px 0 8px;}
+.dept-files.open{display:block;}
+.file-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--gray-200);margin-bottom:6px;background:#fff;}
+
+/* 토스트 */
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--gray-900);color:#fff;
+  padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;
+  transform:translateY(80px);opacity:0;transition:all .3s;max-width:340px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{background:var(--green);}.toast.err{background:var(--red);}
+
+.mo-tag{background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;}
+.dept-tab{padding:14px 18px;font-size:13px;font-weight:600;color:var(--gray-500);
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.dept-tab:hover{color:var(--blue);}.dept-tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.adm-dept-btn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.empty{text-align:center;padding:36px;color:var(--gray-400);font-size:14px;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.info-box{background:var(--blue-light);border:1px solid #bfdbfe;border-radius:8px;
+  padding:11px 15px;font-size:13px;color:#1e40af;}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: 홈 -->
+<div id="pg-home" class="page active">
+  <div class="hdr">
+    <div class="hdr-title">수요 업로드</div>
+    <div class="hdr-r"><span class="mo-tag" id="home-month"></span></div>
+  </div>
+  <div class="container">
+    <div class="home-hero">
+      <h1>수요 업로드</h1>
+      <p>담당 부문 카드를 클릭하면 업로드 화면으로 이동합니다</p>
+    </div>
+    <div class="home-info">
+      <span>📌</span>
+      <span>매월 업로드 시 당월 파일의 <strong>M+1, M+2 수량</strong>을 전월 파일 같은 달과 자동 비교합니다. 수량이 상이하면 변경사유 작성 후 저장됩니다.</span>
+    </div>
+    <div class="dept-grid">
+      <div class="dept-card" style="--dept-color:#2563eb;--dept-bg:#eff6ff;" onclick="enterDept('OTC')">
+        <div class="d-count" id="cnt-OTC">–</div>
+        <div class="d-icon">💊</div><div class="d-name">OTC</div>
+        <div class="d-desc">일반의약품</div><div class="d-arrow">입장하기 →</div>
+      </div>
+      <div class="dept-card" style="--dept-color:#16a34a;--dept-bg:#f0fdf4;" onclick="enterDept('ETC')">
+        <div class="d-count" id="cnt-ETC">–</div>
+        <div class="d-icon">🏥</div><div class="d-name">ETC</div>
+        <div class="d-desc">전문의약품</div><div class="d-arrow">입장하기 →</div>
+      </div>
+      <div class="dept-card" style="--dept-color:#dc2626;--dept-bg:#fef2f2;" onclick="enterDept('헬스케어')">
+        <div class="d-count" id="cnt-헬스케어">–</div>
+        <div class="d-icon">❤️</div><div class="d-name">헬스케어</div>
+        <div class="d-desc">건강기능식품</div><div class="d-arrow">입장하기 →</div>
+      </div>
+      <div class="dept-card" style="--dept-color:#7c3aed;--dept-bg:#f5f3ff;" onclick="enterDept('Global')">
+        <div class="d-count" id="cnt-Global">–</div>
+        <div class="d-icon">🌏</div><div class="d-name">Global</div>
+        <div class="d-desc">수출 / 해외</div><div class="d-arrow">입장하기 →</div>
+      </div>
+      <div class="dept-card" style="--dept-color:#d97706;--dept-bg:#fffbeb;" onclick="enterDept('원료수탁')">
+        <div class="d-count" id="cnt-원료수탁">–</div>
+        <div class="d-icon">🧪</div><div class="d-name">원료/수탁</div>
+        <div class="d-desc">원료 및 수탁생산</div><div class="d-arrow">입장하기 →</div>
+      </div>
+      <div class="dept-card" style="--dept-color:#6b7280;--dept-bg:#f9fafb;cursor:default;opacity:.55;" onclick="showPage('pg-login');event.stopPropagation()">
+        <div class="d-icon" style="background:#f1f5f9;">🔐</div>
+        <div class="d-name">관리자</div><div class="d-desc">별도 비밀번호 로그인</div>
+        <div class="d-arrow" style="color:#6b7280;">로그인 →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: 업로드 -->
+<div id="pg-upload" class="page">
+  <div class="hdr">
+    <div class="hdr-left">
+      <button class="btn-back" onclick="goHome()">← 목록</button>
+      <div class="hdr-title" id="u-hdr-title">수요 업로드</div>
+    </div>
+    <div class="hdr-r">
+      <span class="badge" id="u-badge"></span>
+      <span class="mo-tag" id="u-month"></span>
+    </div>
+  </div>
+
+  <div class="dept-hero" id="dept-hero">
+    <div class="dept-hero-icon" id="hero-icon"></div>
+    <div>
+      <div class="dept-hero-name" id="hero-name"></div>
+      <div class="dept-hero-sub" id="hero-sub"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- STEP 1+2 업로드 박스 -->
+    <div class="step-grid">
+      <!-- STEP 1: 전월자료 -->
+      <div class="step-box active-step" id="box-prev">
+        <div class="step-head">
+          <div class="step-num active" id="num1">1</div>
+          <div>
+            <div class="step-title">전월 수요자료 업로드</div>
+            <div class="step-sub" id="prev-month-label">비교 기준 파일</div>
+          </div>
+        </div>
+        <div class="step-body">
+          <div class="upload-zone" id="zone-prev" onclick="document.getElementById('f-prev').click()"
+               ondragover="onDragOver(event,'zone-prev')" ondragleave="onDragLeave('zone-prev')" ondrop="onDrop(event,'prev')">
+            <input type="file" id="f-prev" accept=".xlsx,.xls" onchange="onSelect(event,'prev')">
+            <div style="font-size:32px;margin-bottom:8px;">📂</div>
+            <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:3px;">전월 파일 선택</div>
+            <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+          </div>
+          <div id="chip-prev" style="display:none;" class="file-chip">
+            <span style="font-size:20px;">📄</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="chip-prev-name"></div>
+              <div style="font-size:11px;color:#15803d;" id="chip-prev-size"></div>
+            </div>
+            <button class="btn btn-o btn-sm" onclick="clearStep('prev')">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: 당월자료 -->
+      <div class="step-box" id="box-curr">
+        <div class="step-head">
+          <div class="step-num" id="num2">2</div>
+          <div>
+            <div class="step-title">당월 수요자료 업로드</div>
+            <div class="step-sub" id="curr-month-label">업로드할 파일</div>
+          </div>
+        </div>
+        <div class="step-body">
+          <div class="upload-zone" id="zone-curr" onclick="if(prevData.length)document.getElementById('f-curr').click(); else showToast('전월 자료를 먼저 업로드하세요','err')"
+               ondragover="onDragOver(event,'zone-curr')" ondragleave="onDragLeave('zone-curr')" ondrop="onDrop(event,'curr')">
+            <input type="file" id="f-curr" accept=".xlsx,.xls" onchange="onSelect(event,'curr')">
+            <div style="font-size:32px;margin-bottom:8px;" id="zone-curr-icon">🔒</div>
+            <div style="font-size:13px;font-weight:600;color:var(--gray-400);margin-bottom:3px;" id="zone-curr-text">전월 자료 업로드 후 활성화</div>
+            <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+          </div>
+          <div id="chip-curr" style="display:none;" class="file-chip">
+            <span style="font-size:20px;">📄</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="chip-curr-name"></div>
+              <div style="font-size:11px;color:#15803d;" id="chip-curr-size"></div>
+            </div>
+            <button class="btn btn-o btn-sm" onclick="clearStep('curr')">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 비교 결과 테이블 -->
+    <div class="card" id="preview-card" style="display:none;">
+      <div class="card-hdr">
+        <span class="card-title">📊 수량 비교 결과</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="preview-info" style="font-size:12px;color:var(--gray-500);"></span>
+          <button class="btn btn-p" id="btn-upload" onclick="doUpload()">💾 저장하기</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#fff3cd;border-radius:3px;display:inline-block;border:1px solid #fcd34d;"></span> 수량 변동</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span class="tag-up" style="font-size:10px;">▲ 증가</span></span>
+          <span style="display:flex;align-items:center;gap:5px;"><span class="tag-dn" style="font-size:10px;">▼ 감소</span></span>
+          <span style="color:var(--gray-400);">· 당월M↔전월M+1, 당월M+1↔전월M+2 비교 (고정)</span>
+        </div>
+        <div class="tbl-wrap" id="preview-tbl"></div>
+      </div>
+    </div>
+
+    <!-- 이력 -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">📋 최근 업로드 이력</span>
+        <button class="btn btn-o btn-sm" onclick="loadHistory()">새로고침</button>
+      </div>
+      <div class="card-body" id="hist-list"><div class="empty">업로드 이력이 없습니다</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: 관리자 로그인 -->
+<div id="pg-login" class="page">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-size:44px;text-align:center;margin-bottom:16px;">🔐</div>
+      <div style="font-size:22px;font-weight:800;text-align:center;margin-bottom:6px;">관리자 로그인</div>
+      <div style="font-size:13px;color:var(--gray-500);text-align:center;margin-bottom:28px;">전체 파일 다운로드 전용</div>
+      <label class="form-label">비밀번호</label>
+      <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호 입력"
+             onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn-login" onclick="doLogin()">로그인</button>
+      <div id="login-err" style="color:var(--red);font-size:13px;text-align:center;margin-top:10px;display:none;">비밀번호가 올바르지 않습니다</div>
+      <div style="text-align:center;margin-top:18px;font-size:13px;color:var(--gray-400);cursor:pointer;" onclick="showPage('pg-home')">← 부서 선택으로 돌아가기</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: 관리자 대시보드 -->
+<div id="pg-admin" class="page">
+  <div class="hdr">
+    <div class="hdr-title">수요 업로드</div>
+    <div class="hdr-r">
+      <span class="badge">🔐 관리자</span>
+      <span class="mo-tag" id="adm-month"></span>
+      <button class="btn-hdr" onclick="adminLogout()">로그아웃</button>
+    </div>
+  </div>
+
+  <!-- 관리자 탭 -->
+  <div style="background:#fff;border-bottom:1px solid var(--gray-200);padding:0 24px;display:flex;">
+    <div class="dept-tab active" id="atab-upload" onclick="switchAdminTab('upload')">📤 수요파일 업로드 &amp; 비교</div>
+    <div class="dept-tab" id="atab-master" onclick="switchAdminTab('master')">🗂 관리자 업로드</div>
+    <div class="dept-tab" id="atab-files" onclick="switchAdminTab('files')">📁 파일 현황 &amp; 다운로드</div>
+  </div>
+
+  <!-- 탭1: 업로드+비교 -->
+  <div id="adm-upload-section">
+    <div class="container">
+
+      <!-- 부서 선택 -->
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-hdr"><span class="card-title">부문 선택</span></div>
+        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-o adm-dept-btn on" id="adm-dept-OTC" onclick="setAdminDept('OTC')">💊 OTC</button>
+          <button class="btn btn-o adm-dept-btn" id="adm-dept-ETC" onclick="setAdminDept('ETC')">🏥 ETC</button>
+          <button class="btn btn-o adm-dept-btn" id="adm-dept-헬스케어" onclick="setAdminDept('헬스케어')">❤️ 헬스케어</button>
+          <button class="btn btn-o adm-dept-btn" id="adm-dept-Global" onclick="setAdminDept('Global')">🌏 Global</button>
+          <button class="btn btn-o adm-dept-btn" id="adm-dept-원료수탁" onclick="setAdminDept('원료수탁')">🧪 원료/수탁</button>
+        </div>
+      </div>
+
+      <!-- STEP 1+2 -->
+      <div class="step-grid">
+        <div class="step-box active-step" id="adm-box-prev">
+          <div class="step-head">
+            <div class="step-num active" id="adm-num1">1</div>
+            <div>
+              <div class="step-title">전월 수요자료 업로드</div>
+              <div class="step-sub" id="adm-prev-lbl">비교 기준 파일</div>
+            </div>
+          </div>
+          <div class="step-body">
+            <div class="upload-zone" id="adm-zone-prev"
+                 onclick="document.getElementById('adm-f-prev').click()"
+                 ondragover="onDragOver(event,'adm-zone-prev')" ondragleave="onDragLeave('adm-zone-prev')" ondrop="onAdmDrop(event,'prev')">
+              <input type="file" id="adm-f-prev" accept=".xlsx,.xls" onchange="onAdmSelect(event,'prev')">
+              <div style="font-size:32px;margin-bottom:8px;">📂</div>
+              <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:3px;">전월 파일 선택</div>
+              <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+            </div>
+            <div id="adm-chip-prev" style="display:none;" class="file-chip">
+              <span style="font-size:20px;">📄</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="adm-chip-prev-name"></div>
+                <div style="font-size:11px;color:#15803d;" id="adm-chip-prev-size"></div>
+              </div>
+              <button class="btn btn-o btn-sm" onclick="clearAdmStep('prev')">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-box" id="adm-box-curr">
+          <div class="step-head">
+            <div class="step-num" id="adm-num2">2</div>
+            <div>
+              <div class="step-title">당월 수요자료 업로드</div>
+              <div class="step-sub" id="adm-curr-lbl">업로드할 파일</div>
+            </div>
+          </div>
+          <div class="step-body">
+            <div class="upload-zone" id="adm-zone-curr"
+                 onclick="if(admPrevData.length)document.getElementById('adm-f-curr').click();else showToast('전월 자료를 먼저 업로드하세요','err')"
+                 ondragover="onDragOver(event,'adm-zone-curr')" ondragleave="onDragLeave('adm-zone-curr')" ondrop="onAdmDrop(event,'curr')">
+              <input type="file" id="adm-f-curr" accept=".xlsx,.xls" onchange="onAdmSelect(event,'curr')">
+              <div style="font-size:32px;margin-bottom:8px;" id="adm-zone-curr-icon">🔒</div>
+              <div style="font-size:13px;font-weight:600;color:var(--gray-400);margin-bottom:3px;" id="adm-zone-curr-text">전월 자료 업로드 후 활성화</div>
+              <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+            </div>
+            <div id="adm-chip-curr" style="display:none;" class="file-chip">
+              <span style="font-size:20px;">📄</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="adm-chip-curr-name"></div>
+                <div style="font-size:11px;color:#15803d;" id="adm-chip-curr-size"></div>
+              </div>
+              <button class="btn btn-o btn-sm" onclick="clearAdmStep('curr')">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 비교 결과 -->
+      <div class="card" id="adm-preview-card" style="display:none;">
+        <div class="card-hdr">
+          <span class="card-title">📊 수량 비교 결과</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="adm-preview-info" style="font-size:12px;color:var(--gray-500);"></span>
+            <button class="btn btn-p" id="adm-btn-upload" onclick="admDoUpload()">💾 저장하기</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--gray-500);">
+            <span>당월M↔전월M+1, 당월M+1↔전월M+2 비교 (고정)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#fff3cd;border:1px solid #fcd34d;border-radius:2px;display:inline-block;"></span> 수량 변동</span>
+          </div>
+          <div class="tbl-wrap" id="adm-preview-tbl"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 탭3: 관리자 업로드 (전부문 한번에) -->
+  <div id="adm-master-section" style="display:none;">
+    <div class="container">
+      <div class="info-box" style="margin-bottom:18px;">
+        📌 전월/당월 파일 각 1개씩 업로드하면 영업기능(OTC:11,12 / ETC:13 / 헬스케어:18 / Global:61 / 원료수탁:52)으로 자동 분류하여 비교합니다.
+      </div>
+
+      <div class="step-grid">
+        <!-- STEP 1 전월 -->
+        <div class="step-box active-step" id="mst-box-prev">
+          <div class="step-head">
+            <div class="step-num active" id="mst-num1">1</div>
+            <div>
+              <div class="step-title">전월 수요자료 업로드</div>
+              <div class="step-sub" id="mst-prev-lbl">전 부문 통합 파일</div>
+            </div>
+          </div>
+          <div class="step-body">
+            <div class="upload-zone" id="mst-zone-prev"
+                 onclick="document.getElementById('mst-f-prev').click()"
+                 ondragover="onDragOver(event,'mst-zone-prev')" ondragleave="onDragLeave('mst-zone-prev')" ondrop="onMstDrop(event,'prev')">
+              <input type="file" id="mst-f-prev" accept=".xlsx,.xls" onchange="onMstSelect(event,'prev')">
+              <div style="font-size:32px;margin-bottom:8px;">📂</div>
+              <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:3px;">전월 파일 선택</div>
+              <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+            </div>
+            <div id="mst-chip-prev" style="display:none;" class="file-chip">
+              <span style="font-size:20px;">📄</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="mst-chip-prev-name"></div>
+                <div style="font-size:11px;color:#15803d;" id="mst-chip-prev-size"></div>
+              </div>
+              <button class="btn btn-o btn-sm" onclick="clearMstStep('prev')">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2 당월 -->
+        <div class="step-box" id="mst-box-curr">
+          <div class="step-head">
+            <div class="step-num" id="mst-num2">2</div>
+            <div>
+              <div class="step-title">당월 수요자료 업로드</div>
+              <div class="step-sub" id="mst-curr-lbl">전 부문 통합 파일</div>
+            </div>
+          </div>
+          <div class="step-body">
+            <div class="upload-zone" id="mst-zone-curr"
+                 onclick="if(mstPrevData.length)document.getElementById('mst-f-curr').click();else showToast('전월 자료를 먼저 업로드하세요','err')"
+                 ondragover="onDragOver(event,'mst-zone-curr')" ondragleave="onDragLeave('mst-zone-curr')" ondrop="onMstDrop(event,'curr')">
+              <input type="file" id="mst-f-curr" accept=".xlsx,.xls" onchange="onMstSelect(event,'curr')">
+              <div style="font-size:32px;margin-bottom:8px;" id="mst-zone-curr-icon">🔒</div>
+              <div style="font-size:13px;font-weight:600;color:var(--gray-400);margin-bottom:3px;" id="mst-zone-curr-text">전월 자료 업로드 후 활성화</div>
+              <div style="font-size:11px;color:var(--gray-400);">.xlsx, .xls</div>
+            </div>
+            <div id="mst-chip-curr" style="display:none;" class="file-chip">
+              <span style="font-size:20px;">📄</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="mst-chip-curr-name"></div>
+                <div style="font-size:11px;color:#15803d;" id="mst-chip-curr-size"></div>
+              </div>
+              <button class="btn btn-o btn-sm" onclick="clearMstStep('curr')">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 부문별 비교 결과 -->
+      <div id="mst-results" style="display:none;">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-hdr">
+            <span class="card-title">📊 전부문 수량 비교 결과</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span id="mst-preview-info" style="font-size:12px;color:var(--gray-500);"></span>
+              <button class="btn btn-o btn-sm" onclick="mstDownloadHistory()">📂 이전달 사유 조회</button>
+              <button class="btn btn-o btn-sm" onclick="mstDownloadReasons()">📥 변경사유 다운로드</button>
+              <button class="btn btn-p" id="mst-btn-save" onclick="mstDoSave()">💾 전체 저장하기</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--gray-500);">
+              <span>당월M↔전월M+1, 당월M+1↔전월M+2 비교 (고정)</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#fff3cd;border:1px solid #fcd34d;border-radius:2px;display:inline-block;"></span> 수량 변동</span>
+            </div>
+            <!-- 부문별 섹션 -->
+            <div id="mst-dept-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+            <div class="tbl-wrap" id="mst-preview-tbl"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭2: 파일 현황 -->
+  <div id="adm-files-section" style="display:none;">
+    <div class="container">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-size:18px;font-weight:800;">전체 수요파일 현황</div>
+          <div style="font-size:13px;color:var(--gray-500);margin-top:3px;" id="admin-date"></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-o" onclick="loadAdmin()">🔄 새로고침</button>
+          <button class="btn btn-o" onclick="checkLocalData()">🔍 저장상태 확인</button>
+          <button class="btn btn-s" onclick="dlAll()">📝 전체 변경사유 다운로드</button>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <div class="s-card"><div class="s-label">전체 파일</div><div class="s-val" id="st-tot">–</div><div class="s-sub">전 부서 합계</div></div>
+        <div class="s-card"><div class="s-label">이번 달 업로드</div><div class="s-val" id="st-mon">–</div><div class="s-sub" id="st-mon-lbl">–</div></div>
+        <div class="s-card"><div class="s-label">변경사유 포함</div><div class="s-val" id="st-chg">–</div><div class="s-sub">변동 항목 있는 파일</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">부서별 업로드 현황</span></div>
+        <div class="card-body" id="admin-list"><div class="empty">데이터를 불러오는 중...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자용 변경사유 모달 -->
+<div class="modal-bg" id="adm-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:4px;">⚠️ 변경사유 작성</div>
+        <div style="font-size:13px;color:var(--gray-500);">수량이 변동된 제품에 대해 사유를 입력해야 저장됩니다</div>
+      </div>
+      <button style="font-size:22px;cursor:pointer;color:var(--gray-400);background:none;border:none;flex-shrink:0;" onclick="closeAdmModal()">✕</button>
+    </div>
+    <div style="padding:18px 24px;" id="adm-diff-list"></div>
+    <div class="modal-ftr">
+      <button class="btn btn-o" onclick="closeAdmModal()">취소</button>
+      <button class="btn btn-p" onclick="admSubmitReasons()">✅ 사유 저장 후 업로드</button>
+    </div>
+  </div>
+</div>
+
+<!-- 변경사유 모달 -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:4px;">⚠️ 변경사유 작성</div>
+        <div style="font-size:13px;color:var(--gray-500);">수량이 변동된 제품에 대해 사유를 입력해야 저장됩니다</div>
+      </div>
+      <button style="font-size:22px;cursor:pointer;color:var(--gray-400);background:none;border:none;flex-shrink:0;" onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:18px 24px;" id="diff-list"></div>
+    <div class="modal-ftr">
+      <button class="btn btn-o" onclick="closeModal()">취소</button>
+      <button class="btn btn-p" id="btn-submit-reasons" onclick="submitReasons()">✅ 사유 저장 후 업로드</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 업로드 변경사유 모달 -->
+<div class="modal-bg" id="mst-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:4px;">⚠️ 변경사유 작성</div>
+        <div style="font-size:13px;color:var(--gray-500);" id="mst-modal-sub">수량이 변동된 제품에 대해 사유를 입력해야 저장됩니다</div>
+      </div>
+      <button style="font-size:22px;cursor:pointer;color:var(--gray-400);background:none;border:none;flex-shrink:0;" onclick="closeMstModal()">✕</button>
+    </div>
+    <div style="padding:18px 24px;" id="mst-diff-list"></div>
+    <div class="modal-ftr">
+      <button class="btn btn-o" onclick="closeMstModal()">취소</button>
+      <button class="btn btn-p" onclick="mstSubmitReasons()">✅ 사유 저장 후 업로드</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ★ 설정
+const SUPABASE_URL      = 'https://jxkhbphayweaqubvfbsp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4a2hicGhheXdlYXF1YnZmYnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTE4MjMsImV4cCI6MjA5NzEyNzgyM30.lvOqxRCpnUlrvLo8KoGcoWKvozMO2zP8reBpAVu3g8I';
+const ADMIN_PASSWORD    = '1897';
+const BUCKET            = '수요 업로드';
+
+// ── 로컬 메모리 저장소 (Supabase 미연결 시 사용) ──
+const localStore = {};
+const localReasons = {};
+function localSave(dept, fileName, fileSize, hasReason, reasons, prevFileName, currFileName, fileObj){
+  if(!localStore[dept]) localStore[dept]=[];
+  localStore[dept].unshift({name:fileName, size:fileSize, uploadedAt:new Date().toISOString(), hasReason, fileObj});
+  if(hasReason) localReasons[dept]={reasons, prevFile:prevFileName, currFile:currFileName, uploadedAt:new Date().toISOString()};
+}
+function localGet(dept){ return localStore[dept]||[]; }
+function isLocal(){ return !sb||SUPABASE_URL==='YOUR_SUPABASE_URL'; }
+
+let sb;
+try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }catch(e){}
+
+const DEPTS=['OTC','ETC','헬스케어','Global','원료수탁'];
+const DEPT_META={
+  OTC:     {icon:'💊',desc:'일반의약품',  color:'#2563eb',bg:'#eff6ff'},
+  ETC:     {icon:'🏥',desc:'전문의약품',  color:'#16a34a',bg:'#f0fdf4'},
+  헬스케어: {icon:'❤️',desc:'건강기능식품',color:'#dc2626',bg:'#fef2f2'},
+  Global:  {icon:'🌏',desc:'수출 / 해외', color:'#7c3aed',bg:'#f5f3ff'},
+  원료수탁: {icon:'🧪',desc:'원료 및 수탁생산',color:'#d97706',bg:'#fffbeb'},
+};
+
+let dept='OTC';
+let prevData=[];   // 전월 파싱 결과
+let currData=[];   // 당월 파싱 결과
+let prevFile=null;
+let currFile=null;
+let diffItems=[];  // 변동 항목
+let savedReasons={}; // 이미 입력한 사유
+
+document.getElementById('home-month').textContent=getYM();
+loadHomeCounts();
+
+// ── 페이지 전환 ──────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ── 홈 카운트 ────────────────────
+async function loadHomeCounts(){
+  for(const d of DEPTS){
+    const cnt=isLocal() ? localGet(d).length : await (async()=>{
+      if(!sb) return 0;
+      const{data}=await sb.storage.from(BUCKET).list(d,{limit:100});
+      return (data||[]).filter(f=>f.name.match(/\.(xlsx|xls)$/i)).length;
+    })();
+    const el=document.getElementById('cnt-'+d);
+    if(el) el.textContent=cnt>0?cnt+'개 파일':'';
+  }
+}
+
+// ── 부서 진입 ────────────────────
+function enterDept(d){
+  dept=d;
+  const m=DEPT_META[d];
+  document.getElementById('u-hdr-title').textContent='수요 업로드';
+  document.getElementById('u-badge').textContent=d;
+  document.getElementById('u-month').textContent=getYM();
+  const hero=document.getElementById('dept-hero');
+  document.getElementById('hero-icon').textContent=m.icon;
+  document.getElementById('hero-icon').style.background=m.bg;
+  document.getElementById('hero-name').textContent=d+' 부문';
+  document.getElementById('hero-name').style.color=m.color;
+  document.getElementById('hero-sub').textContent=m.desc+' · '+getYM()+' 수요예측 파일 업로드';
+  hero.style.borderLeft='4px solid '+m.color;
+
+  // 월 라벨
+  const prev=getPrevYM(), curr=getYM();
+  document.getElementById('prev-month-label').textContent=prev+' 자료 (비교 기준)';
+  document.getElementById('curr-month-label').textContent=curr+' 자료 (업로드 대상)';
+
+  resetAll();
+  showPage('pg-upload');
+  loadHistory();
+}
+
+function goHome(){ resetAll(); showPage('pg-home'); loadHomeCounts(); }
+
+function resetAll(){
+  prevData=[];currData=[];prevFile=null;currFile=null;diffItems=[];savedReasons={};
+
+  // 파일 입력/칩 초기화
+  ['prev','curr'].forEach(w=>{
+    const zone=document.getElementById('zone-'+w);
+    if(zone)zone.style.display='';
+    const chip=document.getElementById('chip-'+w);
+    if(chip)chip.style.display='none';
+    const inp=document.getElementById('f-'+w);
+    if(inp)inp.value='';
+  });
+
+  document.getElementById('preview-card').style.display='none';
+  document.getElementById('box-prev').className='step-box active-step';
+  document.getElementById('box-curr').className='step-box';
+  document.getElementById('num1').className='step-num active';
+  document.getElementById('num1').textContent='1';
+  document.getElementById('num2').className='step-num';
+  document.getElementById('num2').textContent='2';
+  document.getElementById('zone-curr-icon').textContent='🔒';
+  document.getElementById('zone-curr-text').textContent='전월 자료 업로드 후 활성화';
+  document.getElementById('zone-curr-text').style.color='var(--gray-400)';
+}
+
+// ── 파일 드래그 ──────────────────
+function onDragOver(e,zoneId){e.preventDefault();document.getElementById(zoneId).classList.add('drag');}
+function onDragLeave(zoneId){document.getElementById(zoneId).classList.remove('drag');}
+function onDrop(e,which){
+  e.preventDefault();
+  const zoneId=which==='prev'?'zone-prev':'zone-curr';
+  document.getElementById(zoneId).classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f)procFile(f,which);
+}
+function onSelect(e,which){if(e.target.files[0])procFile(e.target.files[0],which);}
+
+// 담당자용 시트 데이터
+let prevSheet=null, currSheet=null;
+
+function procFile(file,which){
+  if(!file.name.match(/\.(xlsx|xls)$/i)){showToast('xlsx/xls 파일만 가능합니다','err');return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const sheet=parseSheet(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+      if(which==='prev'){
+        prevSheet=sheet; prevData=sheet.rows; prevFile=file;
+        showChip('prev',file);
+        document.getElementById('box-curr').className='step-box active-step';
+        document.getElementById('num2').className='step-num active';
+        document.getElementById('zone-curr-icon').textContent='📂';
+        document.getElementById('zone-curr-text').textContent='당월 파일 선택';
+        document.getElementById('zone-curr-text').style.color='var(--gray-700)';
+        document.getElementById('box-prev').className='step-box done';
+        document.getElementById('num1').className='step-num done';
+        document.getElementById('num1').textContent='✓';
+        showToast('전월 자료 로드 완료! 이제 당월 자료를 업로드하세요','ok');
+      } else {
+        if(!prevData.length){showToast('전월 자료를 먼저 업로드하세요','err');return;}
+        currSheet=sheet; currData=sheet.rows; currFile=file;
+        showChip('curr',file);
+        document.getElementById('box-curr').className='step-box done';
+        document.getElementById('num2').className='step-num done';
+        document.getElementById('num2').textContent='✓';
+        runComparison();
+      }
+    }catch(err){showToast('파일 읽기 오류: '+err.message,'err');}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function showChip(which,file){
+  const zone=document.getElementById('zone-'+which);
+  const chip=document.getElementById('chip-'+which);
+  zone.style.display='none';
+  document.getElementById('chip-'+which+'-name').textContent=file.name;
+  document.getElementById('chip-'+which+'-size').textContent=(file.size/1024).toFixed(1)+' KB';
+  chip.style.display='flex';
+}
+
+function clearStep(which){
+  const zone=document.getElementById('zone-'+which);
+  if(zone)zone.style.display='';
+  const chip=document.getElementById('chip-'+which);
+  if(chip)chip.style.display='none';
+  const inp=document.getElementById('f-'+which);
+  if(inp)inp.value='';
+
+  if(which==='prev'){
+    prevData=[];prevFile=null;
+    // 당월도 같이 초기화
+    currData=[];currFile=null;
+    const zone2=document.getElementById('zone-curr');
+    if(zone2)zone2.style.display='';
+    const chip2=document.getElementById('chip-curr');
+    if(chip2)chip2.style.display='none';
+    const inp2=document.getElementById('f-curr');
+    if(inp2)inp2.value='';
+    document.getElementById('preview-card').style.display='none';
+    // step 상태 초기화
+    document.getElementById('box-prev').className='step-box active-step';
+    document.getElementById('box-curr').className='step-box';
+    document.getElementById('num1').className='step-num active';
+    document.getElementById('num1').textContent='1';
+    document.getElementById('num2').className='step-num';
+    document.getElementById('num2').textContent='2';
+    document.getElementById('zone-curr-icon').textContent='🔒';
+    document.getElementById('zone-curr-text').textContent='전월 자료 업로드 후 활성화';
+    document.getElementById('zone-curr-text').style.color='var(--gray-400)';
+  } else {
+    currData=[];currFile=null;
+    document.getElementById('preview-card').style.display='none';
+  }
+}
+
+// ── 파싱 ─────────────────────────
+// 엑셀에서 월 헤더(202506 → 2025.06 형태)를 추출
+function parseYM(val){
+  const s=String(val).replace(/[^0-9]/g,'');
+  if(s.length===6) return s.slice(0,4)+'.'+s.slice(4,6); // 202506 → 2025.06
+  if(s.length===4 && Number(s.slice(2,4))<=12) return '20'+s.slice(0,2)+'.'+s.slice(2,4);
+  return null;
+}
+
+// raw 배열 → {months:[ym0,ym1,ym2,ym3], rows:[...]} 반환
+function parseSheet(raw){
+  let headerRow=-1, dataStart=2;
+  let months=[]; // 컬럼3~6의 월 라벨
+
+  // 0~4행 안에서 날짜 헤더 행 탐색
+  for(let i=0;i<Math.min(5,raw.length);i++){
+    const parsed=raw[i].slice(3,7).map(parseYM).filter(Boolean);
+    if(parsed.length>=2){ months=raw[i].slice(3,7).map(v=>parseYM(v)||''); break; }
+  }
+
+  // 제품코드/제품명 행 탐색
+  for(let i=0;i<raw.length;i++){
+    if(raw[i].some(c=>String(c).trim()==='제품코드'||String(c).trim()==='제품명')){
+      headerRow=i; dataStart=i+1; break;
+    }
+  }
+  if(headerRow<0) dataStart=2;
+
+  const rows=raw.slice(dataStart).map(r=>({
+    code:String(r[0]||'').trim(),
+    name:String(r[1]||'').trim(),
+    func:String(r[2]||'').trim(),
+    cols:[Number(r[3])||0, Number(r[4])||0, Number(r[5])||0, Number(r[6])||0],
+  })).filter(r=>r.code||r.name);
+
+  return {months, rows};
+}
+
+// 하위 호환용 parseRows (담당자 탭 등 기존 코드)
+function parseRows(raw){
+  const {rows}=parseSheet(raw);
+  return rows.map(r=>({
+    code:r.code, name:r.name, func:r.func,
+    m:r.cols[0], m1:r.cols[1], m2:r.cols[2], m3:r.cols[3]
+  }));
+}
+
+// 당월M(ci=0) ↔ 전월M+1(pi=1), 당월M+1(ci=1) ↔ 전월M+2(pi=2)
+function matchCols(prevMonths, currMonths){
+  return [
+    {ci:0, pi:1},  // 당월M    ↔ 전월M+1
+    {ci:1, pi:2},  // 당월M+1  ↔ 전월M+2
+  ];
+}
+
+// ── 비교 공통 함수 ────────────────
+// prevSheet, currSheet = parseSheet 결과
+function buildComparison(prevSheet, currSheet){
+  const pm={};
+  prevSheet.rows.forEach(r=>{
+    const key=r.code+'__'+r.func;
+    pm[key]=r;
+  });
+
+  const pMonths=prevSheet.months;
+  const cMonths=currSheet.months;
+  const fixed=matchCols(pMonths, cMonths); // [{ci,pi},{ci,pi}]
+
+  // 헤더에 표시할 실제 월 이름
+  const fixedLabels=fixed.map(({ci,pi})=>({
+    curr: cMonths[ci]||`컬럼${ci+1}`,
+    prev: pMonths[pi]!==undefined ? pMonths[pi] : (pMonths[ci]||`컬럼${ci+1}`),
+    ci, pi
+  }));
+
+  const exempt=['52','61'];
+  const newReasonDepts=['OTC','ETC','헬스케어']; // 신규도 사유 입력 대상 부문
+  let chgCnt=0;
+  const diffItems=[];
+
+  const rows=currSheet.rows.map(r=>{
+    const key=r.code+'__'+r.func;
+    const p=pm[key];
+    const isExempt=exempt.includes(String(r.func).trim());
+    const isNew=!p;
+
+    // 고정 2개 월 비교
+    const fixedCmp=fixed.map(({ci,pi})=>{
+      const currVal=r.cols[ci];
+      const prevVal=p ? p.cols[pi] : null;
+      const changed=p!==undefined && prevVal!==null && prevVal!==currVal;
+      const diff=changed ? currVal-(prevVal||0) : 0;
+      return {ci, pi, currVal, prevVal, changed, diff};
+    });
+
+    const anyChanged=fixedCmp.some(c=>c.changed);
+    const needReason=(anyChanged && !isExempt) || (isNew && newReasonDepts.includes(dept||admDept));
+    if(needReason){
+      chgCnt++;
+      diffItems.push({...r, key, fixedCmp, fixedLabels, isExempt:false, isNew});
+    }
+
+    // 나머지 컬럼 (고정 아닌 것 — ci=2 M+2, ci=3 M+3)
+    const freeCols=[
+      {ci:2, val:r.cols[2]},
+      {ci:3, val:r.cols[3]}
+    ];
+
+    // 테이블 행 생성
+    const fixedCells=fixedCmp.map(({currVal,prevVal,changed,diff})=>`
+      <td style="color:var(--gray-400);font-size:12px;text-align:center;">${prevVal!==null?prevVal.toLocaleString():'–'}</td>
+      <td class="col-qty${changed?' col-chg':''}" style="text-align:center;">${currVal.toLocaleString()}${changed?`<br><small style="font-size:10px;color:${diff>0?'var(--green)':'var(--red)'};">${diff>0?'▲+':'▼'}${Math.abs(diff).toLocaleString()}</small>`:''}</td>`).join('');
+
+    const statusCell=!p?'<span class="tag-new">신규</span>'
+      :(anyChanged&&!isExempt)?'<span class="tag-dn">⚠ 변동</span>'
+      :(anyChanged&&isExempt)?'<span class="tag-ok">변동(면제)</span>'
+      :'<span class="tag-ok">정상</span>';
+
+    const freeCells=freeCols.map(({val})=>`<td class="col-qty">${val.toLocaleString()}</td>`).join('');
+
+    return `<tr>
+      <td class="col-code">${r.code}</td>
+      <td class="col-name">${r.name}</td>
+      <td class="col-func">${r.func}</td>
+      ${fixedCells}
+      <td class="col-qty">${r.cols[2].toLocaleString()}</td>
+      <td class="col-qty">${r.cols[3].toLocaleString()}</td>
+      <td>${statusCell}</td>
+    </tr>`;
+  }).join('');
+
+  const col2Label = cMonths[2]||'M+2';
+  const col3Label = cMonths[3]||'M+3';
+  const fixedHeadTop=fixedLabels.map(l=>`<th colspan="2" style="background:#854f0b;">${l.curr} 비교 (고정)</th>`).join('');
+  const fixedHeadSub=fixedLabels.map(l=>`
+    <th style="background:#92400e;font-size:11px;">전월<br>${l.prev}</th>
+    <th style="background:#78350f;font-size:11px;">당월<br>${l.curr}</th>`).join('');
+
+  const thead=`<thead>
+    <tr>
+      <th rowspan="2">제품코드</th><th rowspan="2">제품명</th><th rowspan="2">영업기능</th>
+      ${fixedHeadTop}
+      <th rowspan="2">${col2Label}</th>
+      <th rowspan="2">${col3Label}</th>
+      <th rowspan="2">변동여부</th>
+    </tr>
+    <tr>${fixedHeadSub}</tr>
+  </thead>`;
+
+  return {rows, thead, chgCnt, diffItems, fixedLabels};
+}
+
+
+// ── 담당자 비교 ──────────────────
+function runComparison(){
+  const result=buildComparison(prevSheet, currSheet);
+  diffItems=result.diffItems;
+  document.getElementById('preview-tbl').innerHTML=
+    `<table>${result.thead}<tbody>${result.rows}</tbody></table>`;
+  document.getElementById('preview-info').textContent=
+    `${currData.length}개 제품`+(result.chgCnt?` · ⚠ ${result.chgCnt}개 변동`:'');
+  document.getElementById('preview-card').style.display='block';
+  if(result.chgCnt>0) showToast(`⚠ ${result.chgCnt}개 제품 수량 변동 — 저장 시 변경사유 작성 필요`,'');
+  else showToast('✅ 전 제품 수량 이상 없음. 바로 저장 가능합니다','ok');
+}
+
+// ── 업로드/저장 ──────────────────
+async function doUpload(){
+  if(!currFile){showToast('당월 파일을 먼저 업로드하세요','err');return;}
+  if(diffItems.length>0){
+    openModal();
+  } else {
+    await saveFiles({});
+  }
+}
+
+async function saveFiles(reasons){
+  const btn=document.getElementById('btn-upload');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> 저장 중...';
+  try{
+    const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const ym=getYM().replace('.','');
+
+    if(sb&&SUPABASE_URL!=='YOUR_SUPABASE_URL'){
+      const path=`${dept}/${ym}_${ts}_${currFile.name}`;
+      const{error}=await sb.storage.from(BUCKET).upload(path,currFile,{upsert:false});
+      if(error)throw error;
+      if(Object.keys(reasons).length>0){
+        const payload={dept,uploadedAt:new Date().toISOString(),
+          prevFile:prevFile?.name,currFile:currFile?.name,
+          compareRule:'당월M↔전월M+1, 당월M+1↔전월M+2 비교(고정)',reasons};
+        const b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+        await sb.storage.from(BUCKET).upload(`${dept}/변경사유_${ym}_${ts}.json`,b);
+      }
+    } else {
+      // 로컬 메모리 저장
+      await new Promise(r=>setTimeout(r,600));
+      localSave(dept, `${ym}_${ts}_${currFile.name}`, currFile.size, Object.keys(reasons).length>0, reasons, prevFile?.name, currFile.name, currFile);
+    }
+
+    showToast('✅ 저장 완료!','ok');
+    closeModal();
+    loadHistory();
+  }catch(err){
+    showToast('저장 실패: '+(err.message||'다시 시도해주세요'),'err');
+  }finally{
+    btn.disabled=false;btn.innerHTML='💾 저장하기';
+  }
+}
+
+// ── 모달 ─────────────────────────
+function openModal(){
+  const sorted=[...diffItems.filter(r=>!r.isNew),...diffItems.filter(r=>r.isNew)];
+  const newCnt=diffItems.filter(r=>r.isNew).length;
+  const chgCnt2=diffItems.filter(r=>!r.isNew).length;
+  let html=`<div style="padding:12px 16px;background:var(--amber-light);border:1px solid #fcd34d;border-radius:10px;font-size:13px;color:#92400e;margin-bottom:18px;">
+    ${chgCnt2>0?`<strong>수량 변동 ${chgCnt2}개</strong>`:''}${chgCnt2>0&&newCnt>0?' · ':''}${newCnt>0?`<strong>신규 ${newCnt}개</strong>`:''}에 대해 사유 입력이 필요합니다.<br>
+    <span style="font-size:12px;opacity:.85;">신규 제품은 "신규"로 자동 입력됩니다. 수정 가능합니다.</span>
+  </div>`;
+  sorted.forEach((r,i)=>{
+    // 구분 타이틀 — 첫 변동, 첫 신규 앞에 표시
+    const prevR=sorted[i-1];
+    let sectionTitle='';
+    if(i===0 && !r.isNew) sectionTitle=`<div style="font-size:13px;font-weight:800;color:var(--amber);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #fcd34d;">⚠ 수량 변동 제품</div>`;
+    if(r.isNew && (!prevR||!prevR.isNew)) sectionTitle+=`<div style="font-size:13px;font-weight:800;color:#3730a3;margin-bottom:10px;margin-top:${i>0?'18px':'0'};padding-bottom:6px;border-bottom:2px solid #c7d2fe;">🆕 신규 제품</div>`;
+    html+=sectionTitle;
+    const saved=savedReasons[r.key||r.code]||'';
+    const cmpCards = r.isNew
+      ? `<div style="padding:10px 12px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:8px;grid-column:1/-1;">
+          <div style="font-size:11px;color:#3730a3;font-weight:700;margin-bottom:4px;">🆕 신규 제품 추가</div>
+          <div style="font-size:12px;color:var(--gray-600);">전월 파일에 없는 신규 제품입니다. 추가 사유를 입력해주세요.</div>
+         </div>`
+      : (r.fixedCmp||[]).filter(c=>c.changed).map((c,ci)=>{
+      const lbl=r.fixedLabels?.[c.ci]||{};
+      const borderCol=ci===0?'#fcd34d':'#bfdbfe';
+      const labelCol=ci===0?'var(--amber)':'var(--blue)';
+      return `<div style="padding:10px 12px;background:#fff;border:1px solid ${borderCol};border-radius:8px;">
+        <div style="font-size:11px;color:${labelCol};font-weight:700;margin-bottom:6px;">📌 ${lbl.curr||''} 변동</div>
+        <div style="font-size:12px;color:var(--gray-500);">전월 ${lbl.prev||''}</div>
+        <div style="font-size:16px;font-weight:700;margin:2px 0;">${(c.prevVal||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--gray-400);">↓</div>
+        <div style="font-size:12px;color:var(--gray-500);">당월 ${lbl.curr||''}</div>
+        <div style="font-size:16px;font-weight:700;">${c.currVal.toLocaleString()}
+          <span class="${c.diff>0?'cmp-badge cmp-up':'cmp-badge cmp-dn'}">${c.diff>0?'▲+':'▼'}${Math.abs(c.diff).toLocaleString()}</span>
+        </div>
+      </div>`;
+    }).join('');
+    const gridCols = r.isNew ? '1fr' : `repeat(${Math.min((r.fixedCmp||[]).filter(c=>c.changed).length,2)},1fr)`;
+    const initVal = r.isNew ? '신규' : saved;
+    const placeholder = r.isNew ? '신규' : '예) 신규 거래처 수주 확정으로 생산량 증가 / 시장 수요 감소로 하향 조정';
+    html+=`<div style="margin-bottom:16px;padding:16px;border:1px solid ${r.isNew?'#c7d2fe':'var(--gray-200)'};border-radius:12px;background:${r.isNew?'#f5f3ff':'var(--gray-50)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:var(--gray-900);margin-bottom:4px;">${r.name}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;font-weight:700;color:var(--gray-700);background:var(--gray-100);padding:3px 10px;border-radius:6px;letter-spacing:.3px;">📦 ${r.code}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:3px 10px;border-radius:6px;">기능 ${r.func}</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:${gridCols};gap:10px;margin-bottom:12px;">${cmpCards}</div>
+      <label style="font-size:12px;font-weight:700;color:var(--gray-700);display:block;margin-bottom:6px;">${r.isNew?'신규 추가 사유':'변경사유'} <span style="color:var(--red);">*</span></label>
+      <textarea class="diff-reason filled" id="r${i}"
+        placeholder="${placeholder}"
+        oninput="onReasonInput(${i},'${r.key||r.code}')">${initVal}</textarea>
+      <div id="rvalid${i}" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">⚠ 사유를 입력해주세요</div>
+    </div>`;
+  });
+  document.getElementById('diff-list').innerHTML=html;
+  document.getElementById('modal').classList.add('show');
+}
+
+function onReasonInput(i,code){
+  const v=document.getElementById('r'+i).value.trim();
+  savedReasons[code]=v;
+  document.getElementById('r'+i).classList.toggle('filled',v.length>0);
+  document.getElementById('rvalid'+i).style.display='none';
+}
+
+function closeModal(){
+  const sorted=[...diffItems.filter(r=>!r.isNew),...diffItems.filter(r=>r.isNew)];
+  sorted.forEach((r,i)=>{const el=document.getElementById('r'+i);if(el)savedReasons[r.key||r.code]=el.value.trim();});
+  document.getElementById('modal').classList.remove('show');
+}
+
+async function submitReasons(){
+  const sorted=[...diffItems.filter(r=>!r.isNew),...diffItems.filter(r=>r.isNew)];
+  const reasons={};let allOk=true;
+  sorted.forEach((r,i)=>{
+    const v=document.getElementById('r'+i)?.value.trim();
+    if(!v){allOk=false;document.getElementById('rvalid'+i).style.display='block';}
+    reasons[r.key||r.code]={name:r.name,func:r.func,isNew:r.isNew||false,
+      changes:(r.fixedCmp||[]).filter(c=>c.changed).map(c=>({
+        month:r.fixedLabels?.[c.ci]?.curr||'',
+        prev:c.prevVal, curr:c.currVal, diff:c.diff
+      })),reason:v};
+  });
+  if(!allOk){showToast('모든 변경사유를 입력해주세요','err');return;}
+  await saveFiles(reasons);
+}
+
+
+// ── 이력 ─────────────────────────
+async function loadHistory(){
+  const el=document.getElementById('hist-list');
+  if(isLocal()){
+    const files=localGet(dept);
+    if(!files.length){el.innerHTML='<div class="empty">업로드 이력이 없습니다</div>';return;}
+    el.innerHTML=files.map((f,i)=>`
+      <div class="hist-item">
+        <div style="font-size:22px;">📄</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${new Date(f.uploadedAt).toLocaleString('ko-KR')} · ${(f.size/1024).toFixed(1)} KB${f.hasReason?' · 📝 변경사유 있음':''}</div>
+        </div>
+        ${i===0?'<span class="badge-latest">최신</span>':''}
+      </div>`).join('');
+    return;
+  }
+  try{
+    const{data}=await sb.storage.from(BUCKET).list(dept,{sortBy:{column:'created_at',order:'desc'},limit:8});
+    const files=(data||[]).filter(f=>f.name.match(/\.(xlsx|xls)$/i));
+    if(!files.length){el.innerHTML='<div class="empty">업로드 이력이 없습니다</div>';return;}
+    el.innerHTML=files.map((f,i)=>`
+      <div class="hist-item">
+        <div style="font-size:22px;">📄</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${f.updated_at?new Date(f.updated_at).toLocaleString('ko-KR'):''} · ${((f.metadata?.size||0)/1024).toFixed(1)} KB</div>
+        </div>
+        ${i===0?'<span class="badge-latest">최신</span>':''}
+      </div>`).join('');
+  }catch(e){el.innerHTML='<div class="empty">이력을 불러오지 못했습니다</div>';}
+}
+
+// ══════════════════════════════════════
+// 관리자 업로드 (전부문 통합)
+// ══════════════════════════════════════
+const FUNC_DEPT_MAP = {
+  '11':'OTC','12':'OTC',
+  '13':'ETC',
+  '18':'헬스케어',
+  '61':'Global',
+  '52':'원료수탁'
+};
+const EXEMPT_FUNCS = ['52','61'];
+
+let mstPrevSheet=null, mstCurrSheet=null;
+let mstPrevData=[], mstCurrData=[];
+let mstPrevFile=null, mstCurrFile=null;
+let mstDiffItems=[], mstSavedReasons={};
+let mstCurrentDept='OTC';
+let mstAllReasons={};
+
+function mstInit(){
+  document.getElementById('mst-prev-lbl').textContent=getPrevYM()+' 자료 (전 부문)';
+  document.getElementById('mst-curr-lbl').textContent=getYM()+' 자료 (전 부문)';
+
+  // localStorage에서 이번 달 세션 복원
+  const ym=getYM();
+  try{
+    const raw=localStorage.getItem('mst_session_'+ym);
+    if(!raw) return;
+    const saved=JSON.parse(raw);
+    if(!saved.currData?.length) return;
+
+    // 데이터 복원
+    mstPrevData=saved.prevData||[];
+    mstCurrData=saved.currData||[];
+    mstAllReasons=saved.reasons||{};
+    mstPrevSheet={months:saved.prevMonths||[], rows:mstPrevData};
+    mstCurrSheet={months:saved.currMonths||[], rows:mstCurrData};
+
+    // UI 복원
+    document.getElementById('mst-box-prev').className='step-box done';
+    document.getElementById('mst-num1').className='step-num done';
+    document.getElementById('mst-num1').textContent='✓';
+    document.getElementById('mst-chip-prev').style.display='flex';
+    document.getElementById('mst-zone-prev').style.display='none';
+    document.getElementById('mst-chip-prev-name').textContent='[복원됨] 전월 자료';
+    document.getElementById('mst-chip-prev-size').textContent=`저장일시: ${new Date(saved.savedAt).toLocaleString('ko-KR')}`;
+
+    document.getElementById('mst-box-curr').className='step-box done';
+    document.getElementById('mst-num2').className='step-num done';
+    document.getElementById('mst-num2').textContent='✓';
+    document.getElementById('mst-chip-curr').style.display='flex';
+    document.getElementById('mst-zone-curr').style.display='none';
+    document.getElementById('mst-chip-curr-name').textContent='[복원됨] 당월 자료';
+    document.getElementById('mst-chip-curr-size').textContent=`제품 ${mstCurrData.length}개`;
+
+    // 비교 결과 재표시
+    mstRunComparison();
+    showToast(`✅ ${ym} 저장 데이터 복원됨 (${mstCurrData.length}개 제품)`,'ok');
+  }catch(e){
+    // 복원 실패 시 무시
+  }
+}
+
+function onMstDrop(e,which){
+  e.preventDefault();
+  document.getElementById('mst-zone-'+which).classList.remove('drag');
+  const f=e.dataTransfer.files[0]; if(f) procMstFile(f,which);
+}
+function onMstSelect(e,which){ if(e.target.files[0]) procMstFile(e.target.files[0],which); }
+
+function procMstFile(file,which){
+  if(!file.name.match(/\.(xlsx|xls)$/i)){showToast('xlsx/xls 파일만 가능합니다','err');return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const sheet=parseSheet(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+      if(which==='prev'){
+        mstPrevSheet=sheet;mstPrevData=sheet.rows;mstPrevFile=file;
+        showMstChip('prev',file);
+        document.getElementById('mst-box-prev').className='step-box done';
+        document.getElementById('mst-num1').className='step-num done';
+        document.getElementById('mst-num1').textContent='✓';
+        document.getElementById('mst-box-curr').className='step-box active-step';
+        document.getElementById('mst-num2').className='step-num active';
+        document.getElementById('mst-zone-curr-icon').textContent='📂';
+        document.getElementById('mst-zone-curr-text').textContent='당월 파일 선택';
+        document.getElementById('mst-zone-curr-text').style.color='var(--gray-700)';
+        showToast('전월 자료 로드 완료! 당월 자료를 업로드하세요','ok');
+      } else {
+        if(!mstPrevData.length){showToast('전월 자료를 먼저 업로드하세요','err');return;}
+        mstCurrSheet=sheet;mstCurrData=sheet.rows;mstCurrFile=file;
+        showMstChip('curr',file);
+        document.getElementById('mst-box-curr').className='step-box done';
+        document.getElementById('mst-num2').className='step-num done';
+        document.getElementById('mst-num2').textContent='✓';
+        mstRunComparison();
+      }
+    }catch(err){showToast('파일 읽기 오류: '+err.message,'err');}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function showMstChip(which,file){
+  document.getElementById('mst-zone-'+which).style.display='none';
+  document.getElementById('mst-chip-'+which+'-name').textContent=file.name;
+  document.getElementById('mst-chip-'+which+'-size').textContent=(file.size/1024).toFixed(1)+' KB';
+  document.getElementById('mst-chip-'+which).style.display='flex';
+}
+
+function clearMstStep(which){
+  document.getElementById('mst-zone-'+which).style.display='';
+  document.getElementById('mst-chip-'+which).style.display='none';
+  document.getElementById('mst-f-'+which).value='';
+  if(which==='prev'){
+    mstPrevData=[];mstPrevSheet=null;mstPrevFile=null;
+    mstCurrData=[];mstCurrSheet=null;mstCurrFile=null;
+    mstDiffItems=[];mstSavedReasons={};mstAllReasons={};
+    // localStorage 세션 삭제
+    try{ localStorage.removeItem('mst_session_'+getYM()); }catch(e){}
+    document.getElementById('mst-results').style.display='none';
+    document.getElementById('mst-box-prev').className='step-box active-step';
+    document.getElementById('mst-box-curr').className='step-box';
+    document.getElementById('mst-num1').className='step-num active';
+    document.getElementById('mst-num1').textContent='1';
+    document.getElementById('mst-num2').className='step-num';
+    document.getElementById('mst-num2').textContent='2';
+    document.getElementById('mst-zone-curr-icon').textContent='🔒';
+    document.getElementById('mst-zone-curr-text').textContent='전월 자료 업로드 후 활성화';
+    document.getElementById('mst-zone-curr-text').style.color='var(--gray-400)';
+    document.getElementById('mst-zone-curr').style.display='';
+    document.getElementById('mst-chip-curr').style.display='none';
+    document.getElementById('mst-f-curr').value='';
+  } else {
+    mstCurrData=[];mstCurrSheet=null;mstCurrFile=null;
+    mstDiffItems=[];mstSavedReasons={};
+    document.getElementById('mst-results').style.display='none';
+  }
+}
+
+function mstRunComparison(){
+  const result=buildComparison(mstPrevSheet,mstCurrSheet);
+  const depts=['OTC','ETC','헬스케어','Global','원료수탁'];
+  const deptRows={},deptChg={};
+  depts.forEach(d=>{deptRows[d]=[];deptChg[d]=0;});
+  mstCurrData.forEach(r=>{
+    const d=FUNC_DEPT_MAP[String(r.func).trim()]||'기타';
+    if(deptRows[d]) deptRows[d].push(r);
+  });
+  result.diffItems.forEach(r=>{
+    const d=FUNC_DEPT_MAP[String(r.func).trim()]||'기타';
+    if(deptChg[d]!==undefined) deptChg[d]++;
+  });
+  const totalProd=mstCurrData.length, totalChg=result.chgCnt;
+  const newCnt=result.diffItems.filter(r=>r.isNew).length;
+  document.getElementById('mst-preview-info').textContent=
+    `전체 ${totalProd}개 제품 · ⚠ 변동 ${totalChg}개`+(newCnt?` · 🆕 신규 ${newCnt}개`:'');
+
+  const tabEl=document.getElementById('mst-dept-tabs');
+  tabEl.innerHTML=depts.map(d=>{
+    const cnt=deptRows[d]?.length||0;
+    const chg=deptChg[d]||0;
+    const color=DEPT_META[d]?.color||'#6b7280';
+    return `<button onclick="mstShowDept('${d}')" id="msttab-${d}"
+      style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+             border:2px solid ${color};background:#fff;color:${color};">
+      ${DEPT_META[d]?.icon||''} ${d} <span style="font-size:11px;">(${cnt}개${chg?' ⚠'+chg:''})</span>
+    </button>`;
+  }).join('');
+
+  window._mstDeptRows=deptRows;
+  window._mstResult=result;
+  document.getElementById('mst-results').style.display='block';
+  mstShowDept('OTC');
+  if(totalChg>0) showToast(`⚠ ${totalChg}개 변동 — 저장 시 변경사유 작성 필요`,'');
+  else showToast('✅ 전 제품 이상 없음. 바로 저장 가능합니다','ok');
+}
+
+function mstShowDept(d){
+  mstCurrentDept=d;
+  ['OTC','ETC','헬스케어','Global','원료수탁'].forEach(dept=>{
+    const btn=document.getElementById('msttab-'+dept);
+    if(!btn)return;
+    const color=DEPT_META[dept]?.color||'#6b7280';
+    btn.style.background=dept===d?color:'#fff';
+    btn.style.color=dept===d?'#fff':color;
+  });
+  const rows=window._mstDeptRows?.[d]||[];
+  if(!rows.length){
+    document.getElementById('mst-preview-tbl').innerHTML='<div class="empty">해당 부문 제품이 없습니다</div>';
+    return;
+  }
+  const pm={};
+  mstPrevData.forEach(r=>{pm[r.code+'__'+r.func]=r;});
+  const fixed=matchCols(mstPrevSheet.months,mstCurrSheet.months);
+  const fixedLabels=fixed.map(({ci,pi})=>({
+    curr:mstCurrSheet.months[ci]||'',prev:mstPrevSheet.months[pi]||'',ci,pi
+  }));
+  const newReasonDepts=['OTC','ETC','헬스케어'];
+  let trows='';
+  rows.forEach(r=>{
+    const p=pm[r.code+'__'+r.func];
+    const isExempt=EXEMPT_FUNCS.includes(String(r.func).trim());
+    const isNew=!p;
+    const fixedCmp=fixed.map(({ci,pi})=>{
+      const currVal=r.cols[ci],prevVal=p?p.cols[pi]:null;
+      const changed=p!==undefined&&prevVal!==null&&prevVal!==currVal;
+      return{ci,pi,currVal,prevVal,changed,diff:changed?currVal-(prevVal||0):0};
+    });
+    const anyChanged=fixedCmp.some(c=>c.changed);
+    const statusCell=!p?'<span class="tag-new">신규</span>'
+      :(anyChanged&&!isExempt)?'<span class="tag-dn">⚠ 변동</span>'
+      :(anyChanged&&isExempt)?'<span class="tag-ok">변동(면제)</span>'
+      :'<span class="tag-ok">정상</span>';
+    const fixedCells=fixedCmp.map(({currVal,prevVal,changed,diff})=>`
+      <td style="color:var(--gray-400);font-size:12px;text-align:center;">${prevVal!==null?prevVal.toLocaleString():'–'}</td>
+      <td class="col-qty${changed?' col-chg':''}" style="text-align:center;">${currVal.toLocaleString()}${changed?`<br><small style="font-size:10px;color:${diff>0?'var(--green)':'var(--red)'};">${diff>0?'▲+':'▼'}${Math.abs(diff).toLocaleString()}</small>`:''}</td>`).join('');
+    trows+=`<tr>
+      <td class="col-code">${r.code}</td><td class="col-name">${r.name}</td><td class="col-func">${r.func}</td>
+      ${fixedCells}
+      <td class="col-qty">${r.cols[2].toLocaleString()}</td>
+      <td class="col-qty">${r.cols[3].toLocaleString()}</td>
+      <td>${statusCell}</td></tr>`;
+  });
+  const col2=mstCurrSheet.months[2]||'M+2',col3=mstCurrSheet.months[3]||'M+3';
+  const fixedHeadTop=fixedLabels.map(l=>`<th colspan="2" style="background:#854f0b;">${l.curr} 비교(고정)</th>`).join('');
+  const fixedHeadSub=fixedLabels.map(l=>`
+    <th style="background:#92400e;font-size:11px;">전월<br>${l.prev}</th>
+    <th style="background:#78350f;font-size:11px;">당월<br>${l.curr}</th>`).join('');
+  document.getElementById('mst-preview-tbl').innerHTML=`<table>
+    <thead>
+      <tr><th rowspan="2">제품코드</th><th rowspan="2">제품명</th><th rowspan="2">영업기능</th>
+        ${fixedHeadTop}<th rowspan="2">${col2}</th><th rowspan="2">${col3}</th><th rowspan="2">변동여부</th></tr>
+      <tr>${fixedHeadSub}</tr>
+    </thead><tbody>${trows}</tbody></table>`;
+}
+
+async function mstDoSave(){
+  if(!mstCurrFile){showToast('당월 파일을 먼저 업로드하세요','err');return;}
+  const pm={};
+  mstPrevData.forEach(r=>{pm[r.code+'__'+r.func]=r;});
+  const fixed=matchCols(mstPrevSheet.months,mstCurrSheet.months);
+  const fixedLabels=fixed.map(({ci,pi})=>({curr:mstCurrSheet.months[ci]||'',prev:mstPrevSheet.months[pi]||'',ci,pi}));
+  const newReasonDepts=['OTC','ETC','헬스케어'];
+  mstDiffItems=[];
+  mstCurrData.forEach(r=>{
+    const key=r.code+'__'+r.func;
+    const p=pm[key];
+    const isExempt=EXEMPT_FUNCS.includes(String(r.func).trim());
+    const isNew=!p;
+    const dept=FUNC_DEPT_MAP[String(r.func).trim()]||'기타';
+    const fixedCmp=fixed.map(({ci,pi})=>{
+      const currVal=r.cols[ci],prevVal=p?p.cols[pi]:null;
+      const changed=p!==undefined&&prevVal!==null&&prevVal!==currVal;
+      return{ci,pi,currVal,prevVal,changed,diff:changed?currVal-(prevVal||0):0};
+    });
+    const anyChanged=fixedCmp.some(c=>c.changed);
+    const needReason=(anyChanged&&!isExempt)||(isNew&&newReasonDepts.includes(dept));
+    if(needReason) mstDiffItems.push({...r,key,fixedCmp,fixedLabels,isExempt:false,isNew,dept});
+  });
+  if(mstDiffItems.length>0){openMstModal();return;}
+  await mstSaveAll({});
+}
+
+async function mstSaveAll(reasons){
+  const btn=document.getElementById('mst-btn-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> 저장 중...';
+  try{
+    await new Promise(r=>setTimeout(r,600));
+    mstAllReasons=reasons;
+
+    // localStorage에 저장 (탭 이탈해도 유지)
+    const ym=getYM();
+    const saveData={
+      ym,
+      savedAt: new Date().toISOString(),
+      prevMonths: mstPrevSheet?.months||[],
+      currMonths: mstCurrSheet?.months||[],
+      prevData: mstPrevData,
+      currData: mstCurrData,
+      reasons,
+    };
+    try{ localStorage.setItem('mst_session_'+ym, JSON.stringify(saveData)); }catch(e){}
+
+    // 사유 이력에도 저장
+    try{
+      const hist=JSON.parse(localStorage.getItem('mst_reasons')||'{}');
+      if(Object.keys(reasons).length>0) hist[ym]=reasons;
+      localStorage.setItem('mst_reasons', JSON.stringify(hist));
+    }catch(e){}
+
+    showToast('✅ 전부문 저장 완료! (브라우저에 보관됩니다)','ok');
+    closeMstModal();
+  }catch(err){showToast('저장 실패: '+err.message,'err');}
+  finally{btn.disabled=false;btn.innerHTML='💾 전체 저장하기';}
+}
+
+function openMstModal(){
+  const sorted=[...mstDiffItems.filter(r=>!r.isNew),...mstDiffItems.filter(r=>r.isNew)];
+  const newCnt=mstDiffItems.filter(r=>r.isNew).length;
+  const chgCnt2=mstDiffItems.filter(r=>!r.isNew).length;
+  const deptColors={'OTC':'#2563eb','ETC':'#16a34a','헬스케어':'#dc2626','Global':'#7c3aed','원료수탁':'#d97706'};
+  let html=`<div style="padding:12px 16px;background:var(--amber-light);border:1px solid #fcd34d;border-radius:10px;font-size:13px;color:#92400e;margin-bottom:18px;">
+    ${chgCnt2>0?`<strong>수량 변동 ${chgCnt2}개</strong>`:''}${chgCnt2>0&&newCnt>0?' · ':''}${newCnt>0?`<strong>신규 ${newCnt}개</strong>`:''}에 대해 사유 입력이 필요합니다.
+  </div>`;
+  let lastSection='';
+  sorted.forEach((r,i)=>{
+    const saved=mstSavedReasons[r.key]||'';
+    const initVal=r.isNew?'신규':saved;
+    const dept=r.dept||FUNC_DEPT_MAP[String(r.func).trim()]||'기타';
+    const dColor=deptColors[dept]||'#6b7280';
+    const section=r.isNew?'new':'chg';
+    if(section!==lastSection){
+      if(section==='chg') html+=`<div style="font-size:13px;font-weight:800;color:var(--amber);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #fcd34d;">⚠ 수량 변동 제품</div>`;
+      if(section==='new') html+=`<div style="font-size:13px;font-weight:800;color:#3730a3;margin:${i>0?'18px':'0'} 0 10px;padding-bottom:6px;border-bottom:2px solid #c7d2fe;">🆕 신규 제품</div>`;
+      lastSection=section;
+    }
+    const cmpCards=r.isNew
+      ?`<div style="padding:10px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:8px;">
+          <div style="font-size:11px;color:#3730a3;font-weight:700;">🆕 신규 제품 추가</div></div>`
+      :(r.fixedCmp||[]).filter(c=>c.changed).map((c,ci)=>{
+        const lbl=r.fixedLabels?.[c.ci]||{};
+        const bc=ci===0?'#fcd34d':'#bfdbfe',lc=ci===0?'var(--amber)':'var(--blue)';
+        return `<div style="padding:10px;background:#fff;border:1px solid ${bc};border-radius:8px;">
+          <div style="font-size:11px;color:${lc};font-weight:700;margin-bottom:4px;">📌 ${lbl.curr||''} 변동</div>
+          <div style="font-size:12px;color:var(--gray-500);">전월 ${lbl.prev||''}: ${(c.prevVal||0).toLocaleString()}</div>
+          <div style="font-size:14px;font-weight:700;">당월: ${c.currVal.toLocaleString()}
+            <span class="${c.diff>0?'cmp-badge cmp-up':'cmp-badge cmp-dn'}">${c.diff>0?'▲+':'▼'}${Math.abs(c.diff).toLocaleString()}</span>
+          </div></div>`;
+      }).join('');
+    const gridCols=r.isNew?'1fr':`repeat(${Math.min((r.fixedCmp||[]).filter(c=>c.changed).length,2)},1fr)`;
+    html+=`<div style="margin-bottom:12px;padding:14px;border:1px solid ${r.isNew?'#c7d2fe':'var(--gray-200)'};border-radius:10px;background:${r.isNew?'#f5f3ff':'var(--gray-50)'};">
+      <div style="margin-bottom:10px;">
+        <div style="font-size:15px;font-weight:800;margin-bottom:4px;">${r.name}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:var(--gray-700);background:var(--gray-100);padding:2px 8px;border-radius:5px;">📦 ${r.code}</span>
+          <span style="font-size:12px;font-weight:700;color:${dColor};background:#f3f4f6;padding:2px 8px;border-radius:5px;">기능 ${r.func}</span>
+          <span style="font-size:12px;font-weight:700;color:${dColor};background:#f3f4f6;padding:2px 8px;border-radius:5px;">${dept}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:${gridCols};gap:8px;margin-bottom:10px;">${cmpCards}</div>
+      <label style="font-size:12px;font-weight:700;color:var(--gray-700);display:block;margin-bottom:5px;">${r.isNew?'신규 추가 사유':'변경사유'} <span style="color:var(--red);">*</span></label>
+      <textarea class="diff-reason filled" id="mstr${i}" placeholder="${r.isNew?'신규':'예) 수주 증가로 생산량 조정'}"
+        oninput="onMstReasonInput(${i},'${r.key}')">${initVal}</textarea>
+      <div id="mstrvalid${i}" style="font-size:11px;color:var(--red);margin-top:3px;display:none;">⚠ 사유를 입력해주세요</div>
+    </div>`;
+  });
+  document.getElementById('mst-diff-list').innerHTML=html;
+  document.getElementById('mst-modal-sub').textContent=`총 ${sorted.length}개 항목`;
+  document.getElementById('mst-modal').classList.add('show');
+}
+
+function onMstReasonInput(i,key){
+  const v=document.getElementById('mstr'+i)?.value.trim();
+  mstSavedReasons[key]=v;
+  document.getElementById('mstr'+i)?.classList.toggle('filled',(v?.length||0)>0);
+  const el=document.getElementById('mstrvalid'+i);
+  if(el) el.style.display='none';
+}
+
+function closeMstModal(){
+  const sorted=[...mstDiffItems.filter(r=>!r.isNew),...mstDiffItems.filter(r=>r.isNew)];
+  sorted.forEach((r,i)=>{
+    const el=document.getElementById('mstr'+i);
+    if(el) mstSavedReasons[r.key]=el.value.trim();
+  });
+  document.getElementById('mst-modal').classList.remove('show');
+}
+
+async function mstSubmitReasons(){
+  const sorted=[...mstDiffItems.filter(r=>!r.isNew),...mstDiffItems.filter(r=>r.isNew)];
+  const reasons={};let allOk=true;
+  sorted.forEach((r,i)=>{
+    const v=document.getElementById('mstr'+i)?.value.trim();
+    if(!v){allOk=false;const el=document.getElementById('mstrvalid'+i);if(el)el.style.display='block';}
+    reasons[r.key]={name:r.name,func:r.func,
+      dept:r.dept||FUNC_DEPT_MAP[String(r.func).trim()]||'기타',
+      isNew:r.isNew||false,
+      changes:(r.fixedCmp||[]).filter(c=>c.changed).map(c=>({
+        month:r.fixedLabels?.[c.ci]?.curr||'',prev:c.prevVal,curr:c.currVal,diff:c.diff
+      })),reason:v};
+  });
+  if(!allOk){showToast('모든 사유를 입력해주세요','err');return;}
+  await mstSaveAll(reasons);
+}
+
+function mstDownloadReasons(){
+  let reasons = (mstAllReasons && Object.keys(mstAllReasons).length>0)
+    ? mstAllReasons
+    : null;
+
+  // 저장 안 눌렀거나 빈 경우 → 비교 결과에서 직접 추출
+  if(!reasons){
+    if(!mstCurrData.length){
+      showToast('먼저 전월/당월 파일을 업로드하고 비교해주세요','err'); return;
+    }
+    reasons = {};
+    const pm={};
+    mstPrevData.forEach(r=>{pm[r.code+'__'+r.func]=r;});
+    const fixed=matchCols(mstPrevSheet.months,mstCurrSheet.months);
+    const newReasonDepts=['OTC','ETC','헬스케어'];
+    mstCurrData.forEach(r=>{
+      const key=r.code+'__'+r.func;
+      const p=pm[key];
+      const isExempt=EXEMPT_FUNCS.includes(String(r.func).trim());
+      const isNew=!p;
+      const dept=FUNC_DEPT_MAP[String(r.func).trim()]||'기타';
+      const fixedCmp=fixed.map(({ci,pi})=>{
+        const currVal=r.cols[ci],prevVal=p?p.cols[pi]:null;
+        const changed=p!==undefined&&prevVal!==null&&prevVal!==currVal;
+        return{ci,pi,currVal,prevVal,changed,diff:changed?currVal-(prevVal||0):0};
+      });
+      const anyChanged=fixedCmp.some(c=>c.changed);
+      const needReason=(anyChanged&&!isExempt)||(isNew&&newReasonDepts.includes(dept));
+      if(needReason){
+        reasons[key]={
+          name:r.name,func:r.func,dept,isNew,
+          reason:mstSavedReasons[key]||(isNew?'신규':'')
+        };
+      }
+    });
+    if(Object.keys(reasons).length===0){
+      showToast('변동/신규 항목이 없습니다','err'); return;
+    }
+  }
+
+  // localStorage에 이력 저장
+  try{
+    const ym=getYM();
+    const stored=JSON.parse(localStorage.getItem('mst_reasons')||'{}');
+    stored[ym]=reasons;
+    localStorage.setItem('mst_reasons',JSON.stringify(stored));
+  }catch(e){}
+
+  // 엑셀 생성
+  const rows=[['부문','제품코드','제품명','영업기능','변경사유','신규여부','기준월']];
+  const ym=getYM();
+  Object.entries(reasons).forEach(([key,v])=>{
+    const [code,func]=key.split('__');
+    rows.push([v.dept||'',code||'',v.name||'',func||'',v.reason||'',v.isNew?'신규':'변동',ym]);
+  });
+
+  try{
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:10},{wch:14},{wch:36},{wch:10},{wch:50},{wch:8},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,ws,'변경사유');
+    const arr=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`전부문_변경사유_${ym}.xlsx`;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+    showToast('✅ 변경사유 다운로드 완료 ('+Object.keys(reasons).length+'건)','ok');
+  }catch(err){
+    showToast('다운로드 오류: '+err.message,'err');
+  }
+}
+
+function mstDownloadHistory(){
+  try{
+    const stored=JSON.parse(localStorage.getItem('mst_reasons')||'{}');
+    const months=Object.keys(stored).sort().reverse();
+    if(!months.length){
+      showToast('저장된 이전 사유가 없습니다. 먼저 이번 달 사유를 다운로드해주세요','err'); return;
+    }
+    // 전체 월 합쳐서 하나의 엑셀로
+    const rows=[['기준월','부문','제품코드','제품명','영업기능','변경사유','신규여부']];
+    months.forEach(ym=>{
+      const reasons=stored[ym]||{};
+      Object.entries(reasons).forEach(([key,v])=>{
+        const [code,func]=key.split('__');
+        rows.push([ym,v.dept||'',code||'',v.name||'',func||'',v.reason||'',v.isNew?'신규':'변동']);
+      });
+    });
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:10},{wch:10},{wch:14},{wch:36},{wch:10},{wch:50},{wch:8}];
+    XLSX.utils.book_append_sheet(wb,ws,'변경사유이력');
+    const arr=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`변경사유_이력_${months[0]}_~_${months[months.length-1]}.xlsx`;
+    a.style.display='none';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+    showToast(`✅ ${months.length}개월 사유 이력 다운로드 완료`,'ok');
+  }catch(e){
+    showToast('이력 조회 오류: '+e.message,'err');
+  }
+}
+
+
+// ── 관리자 로그인 ─────────────────
+function doLogin(){
+  if(document.getElementById('admin-pw').value===ADMIN_PASSWORD){
+    admDept='OTC';
+    document.querySelectorAll('.adm-dept-btn').forEach(b=>b.classList.toggle('on',b.id==='adm-dept-OTC'));
+    document.getElementById('adm-prev-lbl').textContent=getPrevYM()+' 자료 (비교 기준)';
+    document.getElementById('adm-curr-lbl').textContent=getYM()+' 자료 (업로드 대상)';
+    admResetAll();
+    showPage('pg-admin');
+  }else{
+    document.getElementById('login-err').style.display='block';
+    document.getElementById('admin-pw').value='';
+  }
+}
+function adminLogout(){ showPage('pg-home'); }
+
+// ── 관리자 탭 전환 ────────────────
+function switchAdminTab(tab){
+  document.getElementById('atab-upload').classList.toggle('active', tab==='upload');
+  document.getElementById('atab-master').classList.toggle('active', tab==='master');
+  document.getElementById('atab-files').classList.toggle('active',  tab==='files');
+  document.getElementById('adm-upload-section').style.display = tab==='upload'?'':'none';
+  document.getElementById('adm-master-section').style.display  = tab==='master'?'':'none';
+  document.getElementById('adm-files-section').style.display   = tab==='files' ?'':'none';
+  if(tab==='files') loadAdmin();
+  if(tab==='master') mstInit();
+}
+
+// ── 관리자 부서 선택 ──────────────
+let admDept = 'OTC';
+function setAdminDept(d){
+  admDept=d;
+  document.querySelectorAll('.adm-dept-btn').forEach(b=>{
+    b.classList.toggle('on', b.id==='adm-dept-'+d);
+  });
+  admResetAll();
+  document.getElementById('adm-prev-lbl').textContent=getPrevYM()+' 자료 (비교 기준)';
+  document.getElementById('adm-curr-lbl').textContent=getYM()+' 자료 (업로드 대상)';
+}
+
+// ── 관리자 상태 변수 ──────────────
+let admPrevData=[], admCurrData=[], admPrevFile=null, admCurrFile=null;
+let admDiffItems=[], admSavedReasons={};
+
+function admResetAll(){
+  admPrevData=[];admCurrData=[];admPrevFile=null;admCurrFile=null;
+  admDiffItems=[];admSavedReasons={};
+  ['prev','curr'].forEach(w=>{
+    const zone=document.getElementById('adm-zone-'+w);
+    if(zone)zone.style.display='';
+    const chip=document.getElementById('adm-chip-'+w);
+    if(chip)chip.style.display='none';
+    const inp=document.getElementById('adm-f-'+w);
+    if(inp)inp.value='';
+  });
+  document.getElementById('adm-preview-card').style.display='none';
+  document.getElementById('adm-box-prev').className='step-box active-step';
+  document.getElementById('adm-box-curr').className='step-box';
+  document.getElementById('adm-num1').className='step-num active';
+  document.getElementById('adm-num1').textContent='1';
+  document.getElementById('adm-num2').className='step-num';
+  document.getElementById('adm-num2').textContent='2';
+  document.getElementById('adm-zone-curr-icon').textContent='🔒';
+  document.getElementById('adm-zone-curr-text').textContent='전월 자료 업로드 후 활성화';
+  document.getElementById('adm-zone-curr-text').style.color='var(--gray-400)';
+}
+
+// ── 관리자 파일 처리 ──────────────
+function onAdmDrop(e,which){
+  e.preventDefault();
+  document.getElementById('adm-zone-'+which).classList.remove('drag');
+  const f=e.dataTransfer.files[0]; if(f)procAdmFile(f,which);
+}
+function onAdmSelect(e,which){ if(e.target.files[0])procAdmFile(e.target.files[0],which); }
+
+// 관리자용 시트 데이터
+let admPrevSheet=null, admCurrSheet=null;
+
+function procAdmFile(file,which){
+  if(!file.name.match(/\.(xlsx|xls)$/i)){showToast('xlsx/xls 파일만 가능합니다','err');return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const sheet=parseSheet(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+      if(which==='prev'){
+        admPrevSheet=sheet; admPrevData=sheet.rows; admPrevFile=file;
+        showAdmChip('prev',file);
+        document.getElementById('adm-box-prev').className='step-box done';
+        document.getElementById('adm-num1').className='step-num done';
+        document.getElementById('adm-num1').textContent='✓';
+        document.getElementById('adm-box-curr').className='step-box active-step';
+        document.getElementById('adm-num2').className='step-num active';
+        document.getElementById('adm-zone-curr-icon').textContent='📂';
+        document.getElementById('adm-zone-curr-text').textContent='당월 파일 선택';
+        document.getElementById('adm-zone-curr-text').style.color='var(--gray-700)';
+        showToast('전월 자료 로드 완료! 당월 자료를 업로드하세요','ok');
+      } else {
+        if(!admPrevData.length){showToast('전월 자료를 먼저 업로드하세요','err');return;}
+        admCurrSheet=sheet; admCurrData=sheet.rows; admCurrFile=file;
+        showAdmChip('curr',file);
+        document.getElementById('adm-box-curr').className='step-box done';
+        document.getElementById('adm-num2').className='step-num done';
+        document.getElementById('adm-num2').textContent='✓';
+        admRunComparison();
+      }
+    }catch(err){showToast('파일 읽기 오류: '+err.message,'err');}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function showAdmChip(which,file){
+  document.getElementById('adm-zone-'+which).style.display='none';
+  document.getElementById('adm-chip-'+which+'-name').textContent=file.name;
+  document.getElementById('adm-chip-'+which+'-size').textContent=(file.size/1024).toFixed(1)+' KB';
+  document.getElementById('adm-chip-'+which).style.display='flex';
+}
+
+function clearAdmStep(which){
+  document.getElementById('adm-zone-'+which).style.display='';
+  document.getElementById('adm-chip-'+which).style.display='none';
+  document.getElementById('adm-f-'+which).value='';
+  if(which==='prev'){ admResetAll(); }
+  else { admCurrData=[];admCurrFile=null; document.getElementById('adm-preview-card').style.display='none'; }
+}
+
+// ── 관리자 비교 ───────────────────
+function admRunComparison(){
+  const result=buildComparison(admPrevSheet, admCurrSheet);
+  admDiffItems=result.diffItems;
+  document.getElementById('adm-preview-tbl').innerHTML=
+    `<table>${result.thead}<tbody>${result.rows}</tbody></table>`;
+  document.getElementById('adm-preview-info').textContent=
+    `${admCurrData.length}개 제품`+(result.chgCnt?` · ⚠ ${result.chgCnt}개 변동`:'');
+  document.getElementById('adm-preview-card').style.display='block';
+  if(result.chgCnt>0) showToast(`⚠ ${result.chgCnt}개 제품 수량 변동 — 저장 시 변경사유 작성 필요`,'');
+  else showToast('✅ 전 제품 수량 이상 없음. 바로 저장 가능합니다','ok');
+}
+
+// ── 관리자 저장 ───────────────────
+async function admDoUpload(){
+  if(!admCurrFile){showToast('당월 파일을 먼저 업로드하세요','err');return;}
+  if(admDiffItems.length>0){ openAdmModal(); return; }
+  await admSaveFiles({});
+}
+
+async function admSaveFiles(reasons){
+  const btn=document.getElementById('adm-btn-upload');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> 저장 중...';
+  try{
+    const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const ym=getYM().replace('.','');
+    if(sb&&SUPABASE_URL!=='YOUR_SUPABASE_URL'){
+      const path=`${admDept}/${ym}_${ts}_${admCurrFile.name}`;
+      const{error}=await sb.storage.from(BUCKET).upload(path,admCurrFile,{upsert:false});
+      if(error)throw error;
+      if(Object.keys(reasons).length>0){
+        const payload={dept:admDept,uploadedAt:new Date().toISOString(),
+          prevFile:admPrevFile?.name,currFile:admCurrFile?.name,
+          compareRule:'당월M↔전월M+1, 당월M+1↔전월M+2 비교(고정)',reasons};
+        const b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+        await sb.storage.from(BUCKET).upload(`${admDept}/변경사유_${ym}_${ts}.json`,b);
+      }
+    } else {
+      await new Promise(r=>setTimeout(r,600));
+      localSave(admDept, `${ym}_${ts}_${admCurrFile.name}`, admCurrFile.size, Object.keys(reasons).length>0, reasons, admPrevFile?.name, admCurrFile.name, admCurrFile);
+    }
+    showToast('✅ 저장 완료!','ok');
+    closeAdmModal();
+  }catch(err){ showToast('저장 실패: '+(err.message||'다시 시도해주세요'),'err'); }
+  finally{ btn.disabled=false;btn.innerHTML='💾 저장하기'; }
+}
+
+// ── 관리자 변경사유 모달 ──────────
+function openAdmModal(){
+  const sorted=[...admDiffItems.filter(r=>!r.isNew),...admDiffItems.filter(r=>r.isNew)];
+  const newCnt=admDiffItems.filter(r=>r.isNew).length;
+  const chgCnt2=admDiffItems.filter(r=>!r.isNew).length;
+  let html=`<div style="padding:12px 16px;background:var(--amber-light);border:1px solid #fcd34d;border-radius:10px;font-size:13px;color:#92400e;margin-bottom:18px;">
+    ${chgCnt2>0?`<strong>수량 변동 ${chgCnt2}개</strong>`:''}${chgCnt2>0&&newCnt>0?' · ':''}${newCnt>0?`<strong>신규 ${newCnt}개</strong>`:''}에 대해 사유 입력이 필요합니다.<br>
+    <span style="font-size:12px;opacity:.85;">신규 제품은 "신규"로 자동 입력됩니다. 수정 가능합니다.</span>
+  </div>`;
+  sorted.forEach((r,i)=>{
+    const prevR=sorted[i-1];
+    let sectionTitle='';
+    if(i===0 && !r.isNew) sectionTitle=`<div style="font-size:13px;font-weight:800;color:var(--amber);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #fcd34d;">⚠ 수량 변동 제품</div>`;
+    if(r.isNew && (!prevR||!prevR.isNew)) sectionTitle+=`<div style="font-size:13px;font-weight:800;color:#3730a3;margin-bottom:10px;margin-top:${i>0?'18px':'0'};padding-bottom:6px;border-bottom:2px solid #c7d2fe;">🆕 신규 제품</div>`;
+    html+=sectionTitle;
+    const saved=admSavedReasons[r.key||r.code]||'';
+    const cmpCards = r.isNew
+      ? `<div style="padding:10px 12px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:8px;grid-column:1/-1;">
+          <div style="font-size:11px;color:#3730a3;font-weight:700;margin-bottom:4px;">🆕 신규 제품 추가</div>
+          <div style="font-size:12px;color:var(--gray-600);">전월 파일에 없는 신규 제품입니다.</div>
+         </div>`
+      : (r.fixedCmp||[]).filter(c=>c.changed).map((c,ci)=>{
+      const lbl=r.fixedLabels?.[c.ci]||{};
+      const borderCol=ci===0?'#fcd34d':'#bfdbfe';
+      const labelCol=ci===0?'var(--amber)':'var(--blue)';
+      return `<div style="padding:10px 12px;background:#fff;border:1px solid ${borderCol};border-radius:8px;">
+        <div style="font-size:11px;color:${labelCol};font-weight:700;margin-bottom:6px;">📌 ${lbl.curr||''} 변동</div>
+        <div style="font-size:12px;color:var(--gray-500);">전월 ${lbl.prev||''}</div>
+        <div style="font-size:16px;font-weight:700;margin:2px 0;">${(c.prevVal||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--gray-400);">↓</div>
+        <div style="font-size:12px;color:var(--gray-500);">당월 ${lbl.curr||''}</div>
+        <div style="font-size:16px;font-weight:700;">${c.currVal.toLocaleString()}
+          <span class="${c.diff>0?'cmp-badge cmp-up':'cmp-badge cmp-dn'}">${c.diff>0?'▲+':'▼'}${Math.abs(c.diff).toLocaleString()}</span>
+        </div>
+      </div>`;
+    }).join('');
+    const gridCols = r.isNew ? '1fr' : `repeat(${Math.min((r.fixedCmp||[]).filter(c=>c.changed).length,2)},1fr)`;
+    const initVal = r.isNew ? '신규' : saved;
+    const placeholder = r.isNew ? '신규' : '예) 신규 거래처 수주 확정으로 생산량 증가 / 시장 수요 감소로 하향 조정';
+    html+=`<div style="margin-bottom:16px;padding:16px;border:1px solid ${r.isNew?'#c7d2fe':'var(--gray-200)'};border-radius:12px;background:${r.isNew?'#f5f3ff':'var(--gray-50)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:var(--gray-900);margin-bottom:4px;">${r.name}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;font-weight:700;color:var(--gray-700);background:var(--gray-100);padding:3px 10px;border-radius:6px;letter-spacing:.3px;">📦 ${r.code}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:3px 10px;border-radius:6px;">기능 ${r.func}</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:${gridCols};gap:10px;margin-bottom:12px;">${cmpCards}</div>
+      <label style="font-size:12px;font-weight:700;color:var(--gray-700);display:block;margin-bottom:6px;">${r.isNew?'신규 추가 사유':'변경사유'} <span style="color:var(--red);">*</span></label>
+      <textarea class="diff-reason filled" id="ar${i}"
+        placeholder="${placeholder}"
+        oninput="onAdmReasonInput(${i},'${r.key||r.code}')">${initVal}</textarea>
+      <div id="arvalid${i}" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">⚠ 사유를 입력해주세요</div>
+    </div>`;
+  });
+  document.getElementById('adm-diff-list').innerHTML=html;
+  document.getElementById('adm-modal').classList.add('show');
+}
+
+function onAdmReasonInput(i,code){
+  const v=document.getElementById('ar'+i).value.trim();
+  admSavedReasons[code]=v;
+  document.getElementById('ar'+i).classList.toggle('filled',v.length>0);
+  document.getElementById('arvalid'+i).style.display='none';
+}
+
+function closeAdmModal(){
+  const sorted=[...admDiffItems.filter(r=>!r.isNew),...admDiffItems.filter(r=>r.isNew)];
+  sorted.forEach((r,i)=>{const el=document.getElementById('ar'+i);if(el)admSavedReasons[r.key||r.code]=el.value.trim();});
+  document.getElementById('adm-modal').classList.remove('show');
+}
+
+async function admSubmitReasons(){
+  const sorted=[...admDiffItems.filter(r=>!r.isNew),...admDiffItems.filter(r=>r.isNew)];
+  const reasons={};let allOk=true;
+  sorted.forEach((r,i)=>{
+    const v=document.getElementById('ar'+i)?.value.trim();
+    if(!v){allOk=false;document.getElementById('arvalid'+i).style.display='block';}
+    reasons[r.key||r.code]={name:r.name,func:r.func,isNew:r.isNew||false,
+      changes:(r.fixedCmp||[]).filter(c=>c.changed).map(c=>({
+        month:r.fixedLabels?.[c.ci]?.curr||'',
+        prev:c.prevVal, curr:c.currVal, diff:c.diff
+      })),reason:v};
+  });
+  if(!allOk){showToast('모든 변경사유를 입력해주세요','err');return;}
+  await admSaveFiles(reasons);
+}
+
+
+
+async function loadAdmin(){
+  const now=new Date();
+  document.getElementById('admin-date').textContent=now.getFullYear()+'년 '+(now.getMonth()+1)+'월 '+now.getDate()+'일 기준';
+  document.getElementById('st-mon-lbl').textContent=getYM()+' 기준';
+  const ym=getYM().replace('.','');
+
+  if(isLocal()){
+    let tot=0,mon=0,chg=0,html='';
+    for(const d of DEPTS){
+      const files=localGet(d);
+      tot+=files.length;
+      mon+=files.filter(f=>f.name.startsWith(ym)).length;
+      chg+=files.filter(f=>f.hasReason).length;
+      // deptSection용 포맷으로 변환
+      const fmtFiles=files.map(f=>({name:f.name,updated_at:f.uploadedAt,metadata:{size:f.size}}));
+      const fmtReasons=files.filter(f=>f.hasReason).map(f=>({name:'변경사유_'+f.name.replace('.xlsx','.json'),updated_at:f.uploadedAt}));
+      html+=deptSection(d,fmtFiles,fmtReasons);
+    }
+    document.getElementById('st-tot').textContent=tot;
+    document.getElementById('st-mon').textContent=mon;
+    document.getElementById('st-chg').textContent=chg;
+    document.getElementById('admin-list').innerHTML=html||'<div class="empty">저장된 파일이 없습니다</div>';
+    bindToggles();
+    return;
+  }
+
+  let tot=0,mon=0,chg=0,html='';
+  for(const d of DEPTS){
+    const{data}=await sb.storage.from(BUCKET).list(d,{sortBy:{column:'created_at',order:'desc'}});
+    const files=(data||[]).filter(f=>f.name.match(/\.(xlsx|xls)$/i));
+    const reasons=(data||[]).filter(f=>f.name.startsWith('변경사유_'));
+    tot+=files.length;mon+=files.filter(f=>f.name.startsWith(ym)).length;chg+=reasons.length;
+    html+=deptSection(d,files,reasons);
+  }
+  document.getElementById('st-tot').textContent=tot;
+  document.getElementById('st-mon').textContent=mon;
+  document.getElementById('st-chg').textContent=chg;
+  document.getElementById('admin-list').innerHTML=html||'<div class="empty">파일이 없습니다</div>';
+  bindToggles();
+}
+
+function renderAdminDemo(){
+  ['st-tot','st-mon','st-chg'].forEach(id=>document.getElementById(id).textContent='–');
+  document.getElementById('admin-list').innerHTML=DEPTS.map(d=>deptSection(d,[],[])).join('')+
+    '<div style="margin-top:14px;padding:12px;background:var(--amber-light);border:1px solid #fcd34d;border-radius:8px;font-size:13px;color:#92400e;">Supabase 연결 후 실제 파일이 표시됩니다</div>';
+  bindToggles();
+}
+
+function deptSection(d,files,reasons){
+  const m=DEPT_META[d];
+  const fileRows=files.length?files.map(f=>`
+    <div class="file-row">
+      <span style="font-size:20px;">📄</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${f.updated_at?new Date(f.updated_at).toLocaleString('ko-KR'):'–'} · ${((f.metadata?.size||0)/1024).toFixed(1)} KB</div>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="dlFile('${d}','${f.name}')">📝 변경사유 다운로드</button>
+    </div>`).join(''):'<div style="padding:12px;font-size:13px;color:var(--gray-400);">업로드된 파일이 없습니다</div>';
+
+  const reasonRows=(reasons||[]).length?`<div style="margin-top:8px;">
+    <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">📝 변경사유 파일</div>
+    ${reasons.map(f=>`<div class="file-row" style="border-color:#fcd34d;">
+      <span style="font-size:20px;">📝</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${f.updated_at?new Date(f.updated_at).toLocaleString('ko-KR'):'–'}</div>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="dlFile('${d}','${f.name}')">📝 변경사유 다운로드</button>
+    </div>`).join('')}
+  </div>`:'';
+
+  return `<div style="margin-bottom:12px;">
+    <div class="dept-sec-hdr" data-dept="${d}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${m.color};"></div>
+        <span style="font-size:14px;font-weight:700;">${d}</span>
+        <span style="font-size:12px;color:var(--gray-400);">${m.desc}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:var(--gray-500);">${files.length}개 파일</span>
+        ${(reasons||[]).length?`<span style="font-size:11px;background:var(--amber-light);color:var(--amber);padding:2px 8px;border-radius:8px;font-weight:700;">사유 ${reasons.length}건</span>`:''}
+        <span style="color:var(--gray-400);">▾</span>
+      </div>
+    </div>
+    <div class="dept-files" id="df-${d}">
+      <div style="padding:4px 0;">${fileRows}${reasonRows}</div>
+    </div>
+  </div>`;
+}
+
+function bindToggles(){
+  document.querySelectorAll('.dept-sec-hdr').forEach(h=>{
+    h.onclick=()=>document.getElementById('df-'+h.dataset.dept).classList.toggle('open');
+  });
+}
+
+// ── 변경사유 엑셀 다운로드 ──────────────
+function checkLocalData(){
+  let msg = '=== 저장 상태 확인 ===\n\n';
+  let hasAny = false;
+  for(const d of DEPTS){
+    const files = localGet(d);
+    const r = localReasons[d];
+    if(files.length || r){
+      hasAny = true;
+      msg += `[${d}]\n`;
+      msg += `  파일: ${files.length}개${files[0]?' (최신: '+files[0].name+')':''}\n`;
+      msg += `  변경사유: ${r ? Object.keys(r.reasons||{}).length+'건' : '없음'}\n`;
+    }
+  }
+  if(!hasAny) msg += '저장된 데이터가 없습니다.\n저장하기 버튼을 눌러야 데이터가 저장됩니다.';
+  alert(msg);
+}
+
+function downloadReasonsExcel(dept, reasons, uploadedAt){
+  if(!reasons || Object.keys(reasons).length===0){
+    showToast('저장된 변경사유가 없습니다','err'); return;
+  }
+  const rows=[['제품코드','제품명','영업기능','변경사유','신규여부','업로드일시']];
+  Object.entries(reasons).forEach(([key,v])=>{
+    const [code, func] = key.split('__');
+    rows.push([
+      code||'',
+      v.name||'',
+      func||'',
+      v.reason||'',
+      v.isNew?'신규':'변동',
+      uploadedAt ? new Date(uploadedAt).toLocaleString('ko-KR') : ''
+    ]);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // 컬럼 너비
+  ws['!cols']=[{wch:14},{wch:36},{wch:10},{wch:50},{wch:8},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws, '변경사유');
+  const arr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  const blob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `[${dept}] 변경사유_${getYM()}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function dlFile(d, name){
+  if(isLocal()){
+    const r = localReasons[d];
+    if(!r || !r.reasons || Object.keys(r.reasons).length===0){
+      showToast('저장된 변경사유가 없습니다','err'); return;
+    }
+    downloadReasonsExcel(d, r.reasons, r.uploadedAt);
+    showToast('✅ 변경사유 다운로드 완료','ok');
+    return;
+  }
+  // Supabase 모드
+  const {data:fileList}=await sb.storage.from(BUCKET).list(d,{sortBy:{column:'created_at',order:'desc'}});
+  const rjFile=(fileList||[]).find(x=>x.name.startsWith('변경사유_'));
+  if(!rjFile){showToast('저장된 변경사유가 없습니다','err');return;}
+  const {data:rjBlob}=await sb.storage.from(BUCKET).download(`${d}/${rjFile.name}`);
+  if(!rjBlob){showToast('다운로드 실패','err');return;}
+  const txt=await rjBlob.text();
+  try{
+    const payload=JSON.parse(txt);
+    downloadReasonsExcel(d, payload.reasons, payload.uploadedAt);
+    showToast('✅ 변경사유 다운로드 완료','ok');
+  }catch(e){showToast('파일 파싱 오류','err');}
+}
+
+async function dlAll(){
+  showToast('전체 변경사유 다운로드 준비 중...','');
+  // 전 부서 사유를 하나의 엑셀로 합쳐서 다운로드
+  const rows=[['부문','제품코드','제품명','영업기능','변경사유','신규여부','업로드일시']];
+
+  if(isLocal()){
+    let cnt=0;
+    for(const d of DEPTS){
+      const r=localReasons[d];
+      if(!r||!r.reasons) continue;
+      Object.entries(r.reasons).forEach(([key,v])=>{
+        const [code,func]=key.split('__');
+        rows.push([d, code||'', v.name||'', func||'', v.reason||'', v.isNew?'신규':'변동',
+          r.uploadedAt?new Date(r.uploadedAt).toLocaleString('ko-KR'):'']);
+        cnt++;
+      });
+    }
+    if(!cnt){showToast('저장된 변경사유가 없습니다','err');return;}
+  } else {
+    for(const d of DEPTS){
+      const {data:fileList}=await sb.storage.from(BUCKET).list(d,{sortBy:{column:'created_at',order:'desc'}});
+      const rjFile=(fileList||[]).find(x=>x.name.startsWith('변경사유_'));
+      if(!rjFile) continue;
+      const {data:rjBlob}=await sb.storage.from(BUCKET).download(`${d}/${rjFile.name}`);
+      if(!rjBlob) continue;
+      try{
+        const payload=JSON.parse(await rjBlob.text());
+        Object.entries(payload.reasons||{}).forEach(([key,v])=>{
+          const [code,func]=key.split('__');
+          rows.push([d, code||'', v.name||'', func||'', v.reason||'', v.isNew?'신규':'변동',
+            payload.uploadedAt?new Date(payload.uploadedAt).toLocaleString('ko-KR'):'']);
+        });
+      }catch(e){}
+    }
+    if(rows.length<=1){showToast('저장된 변경사유가 없습니다','err');return;}
+  }
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:10},{wch:14},{wch:36},{wch:10},{wch:50},{wch:8},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'전체변경사유');
+  const arr=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`전체변경사유_${getYM()}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`✅ 전체 변경사유 다운로드 완료`,'ok');
+}
+
+// ── 유틸 ─────────────────────────
+function getYM(){const d=new Date();return d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0');}
+function getPrevYM(){const d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0');}
+function getMonths(){const d=new Date();return Array.from({length:4},(_,i)=>{const t=new Date(d.getFullYear(),d.getMonth()+i,1);return (t.getMonth()+1)+'월';});}
+
+let tTimer;
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show'+(type?' '+type:'');
+  clearTimeout(tTimer);tTimer=setTimeout(()=>el.classList.remove('show'),4000);
+}
+</script>
+</body>
+</html>
